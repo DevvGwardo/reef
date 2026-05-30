@@ -3,9 +3,21 @@
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semver](https://semver.org/spec/v2.0.0.html).
 
+> **Note:** Reef was forked from [Pond](https://github.com/DevvGwardo/pond) at version 0.4.5. Entries below may describe Pond-era additions. Reef-specific changes start from this fork point.
+
 ## [Unreleased]
 
 ### Added
+
+- **Fork from Pond.** Reef is a Shopify-focused fork of Pond. Brand renamed from `pond` → `reef` throughout: CLI binary, package name, public host (`reef.app`), env vars (`REEF_` prefix), state dir (`.reef`), credentials dir (`~/.reef`), env file (`.env.reef.server`), Prometheus metrics prefix, and internal table prefixes. See `REEF_NOTES.md` for the full diff.
+- **Shopify default template.** `reef new <name>` now scaffolds a Shopify-connected capsule by default (was: todo list). Includes a `products` query calling `ctx.shopify.graphql()`, a Preact product-table UI, and placeholder env vars. Use `--template todo` or `--template blank` for other options.
+- **`--template blank` option.** Scaffolds a minimal stub with no template code — agent-only scaffold, no template colouring. `reef new <name> --template blank`.
+- **`ctx.shopify.graphql()` — built-in, always available.** Every capsule gets `ctx.shopify.graphql<T>(query, variables?)` for calling the Shopify Admin GraphQL API with a token-based Custom App token. Reads `SHOPIFY_SHOP`, `SHOPIFY_TOKEN`, `SHOPIFY_API_VERSION` from capsule env.
+  - `src/server/index.ts` — `CapsuleShopify` interface, `shopify` field on `CapsuleContext`.
+  - `src/runtime.ts` — `createShopify()` implementation wired into `buildContext()`.
+  - `test/shopify.test.mjs` — 9 unit tests covering missing env, URL/header/body construction, shop name normalization, HTTP errors, GraphQL errors, and API version override.
+  - Docs: `docs/api-reference.md` — context interface updated, full `ctx.shopify` section with env var table, example, error handling, and authenticated-deploy requirement.
+  - Agent guidance: `src/template.ts` capsule contract mentions `ctx.shopify`.
 
 - **Shopify-connected capsules — `ctx.shopify.graphql()`.** A new first-class context helper that lets a capsule call the Shopify Admin GraphQL API using a Custom App access token. Reads `SHOPIFY_SHOP`, `SHOPIFY_TOKEN`, and `SHOPIFY_API_VERSION` from capsule env (`.env.reef.server` or `reef env set`). Normalizes bare shop names and protocol-prefixed URLs. Throws clear errors on missing env, non-2xx responses, and GraphQL `errors` arrays. Export `createShopify()` from `src/runtime.ts` for testing.
   - `src/server/index.ts` — new `CapsuleShopify` interface, `shopify` field on `CapsuleContext`.

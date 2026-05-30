@@ -1,6 +1,12 @@
 # Reef
 
 <p align="center">
+  <strong>Build & host small Shopify-connected apps.</strong><br />
+  Token-based Shopify Admin API access. No OAuth, no Partner registration.<br />
+  Scaffold a capsule, set your store token, and start querying products in minutes.
+</p>
+
+<p align="center">
   <img src="https://raw.githubusercontent.com/DevvGwardo/reef-assets/main/reef-title.png" alt="Reef title image" width="100%" />
 </p>
 
@@ -9,8 +15,9 @@
 </p>
 
 <p align="center">
-  <strong>Agent-native full-stack TypeScript capsules.</strong><br />
-  Scaffold a small app, define your schema and handlers in one file, and run it locally with a built-in Hono + SQLite runtime.
+  <strong>Agent-native full-stack TypeScript capsules, now with built-in Shopify.</strong><br />
+  Scaffold a small app, define your schema and handlers in one file, and run it locally with a built-in Hono + SQLite runtime.<br />
+  Every capsule gets `ctx.shopify.graphql()` — call the Shopify Admin API from your server handlers.
 </p>
 
 <p align="center">
@@ -81,6 +88,28 @@ npm install && npm run dev
 ```
 
 Open `http://localhost:3000`.
+
+### Shopify quickstart
+
+```bash
+npx reefsh new my-shopify-app
+cd my-shopify-app
+```
+
+Then edit `.env.reef.server` with your store credentials:
+
+```
+SHOPIFY_SHOP=my-store.myshopify.com
+SHOPIFY_TOKEN=***
+```
+
+Then:
+
+```bash
+npm install && npm run dev
+```
+
+Open `http://localhost:3000` to see your products listed. See [docs/api-reference.md](docs/api-reference.md#ctxshopify) for the full `ctx.shopify.graphql()` reference.
 
 Prefer a global install? `npm install -g reefsh` then use `reef new …` and `reef dev` directly.
 
