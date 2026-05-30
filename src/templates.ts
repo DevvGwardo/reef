@@ -662,7 +662,7 @@ export function App() {
 const SHOPIFY: Template = {
   name: "shopify",
   description: "Shopify-connected capsule — query your store\'s Admin API with a Custom App token.",
-  keywords: ["shopify", "store", "products", "ecommerce", "commerce", "orders", "inventory"],
+  keywords: ["shopify", "store", "products", "ecommerce", "commerce", "orders", "inventory", "default"],
   envExtra: `SHOPIFY_SHOP=
 SHOPIFY_TOKEN=
 # SHOPIFY_API_VERSION=2025-01
@@ -783,7 +783,7 @@ export function App() {
 `,
 }
 
-export const TEMPLATES: Template[] = [TODO, AUTH_APP, BLOG, CHAT, DASHBOARD, WEBHOOK_HANDLER, SHOPIFY]
+export const TEMPLATES: Template[] = [SHOPIFY, TODO, AUTH_APP, BLOG, CHAT, DASHBOARD, WEBHOOK_HANDLER]
 
 export function getTemplate(name: string): Template | null {
   return TEMPLATES.find((t) => t.name === name) ?? null
@@ -832,5 +832,5 @@ export function pickTemplateForPrompt(prompt: string): Template {
     return { t, score }
   })
   scores.sort((a, b) => b.score - a.score)
-  return scores[0].score > 0 ? scores[0].t : TODO
+  return scores[0].score > 0 ? scores[0].t : SHOPIFY
 }

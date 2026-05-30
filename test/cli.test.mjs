@@ -125,8 +125,8 @@ test("`reef deploy --local` produces .reef/deploy-bundle.mjs and deploy.json", a
 
 test("`reef start` serves the bundled output", async () => {
   const parent = tmp("reef-cli-start-")
-  // Scaffold + deploy
-  await execFileP(process.execPath, [CLI_PATH, "new", "cap2", "--no-git"], {
+  // Scaffold + deploy — use --template todo (which has a `messages` query)
+  await execFileP(process.execPath, [CLI_PATH, "new", "cap2", "--template", "todo", "--no-git"], {
     cwd: parent,
     timeout: 30000,
   })
@@ -164,7 +164,8 @@ test("`reef start` serves the bundled output", async () => {
 
 test("`reef dev` boots, serves /api/query, and exits cleanly on SIGINT", async () => {
   const parent = tmp("reef-cli-dev-")
-  await execFileP(process.execPath, [CLI_PATH, "new", "cap3", "--no-git"], {
+  // Use --template todo (which has a `messages` query)
+  await execFileP(process.execPath, [CLI_PATH, "new", "cap3", "--template", "todo", "--no-git"], {
     cwd: parent,
     timeout: 30000,
   })

@@ -96,7 +96,7 @@ export const newCommand = defineCommand({
     },
     template: {
       type: "string",
-      description: "Template to use (default: auto-pick from prompt, else 'todo')",
+      description: "Template to use (default: 'shopify', use 'blank' for a minimal scaffold)",
     },
     git: {
       type: "boolean",
@@ -151,6 +151,15 @@ export const newCommand = defineCommand({
     const templateArg = (args as { template?: string }).template
     const wantsGenerate = Boolean((args as { generate?: boolean }).generate)
 
+    // --template blank → use stub scaffold (no template)
+    const isBlank = templateArg === "blank"
+
+    if (isBlank) {
+      // blank is a pseudo-template; strip it so the scaffolding logic
+      // knows we want stubs
+      ;(args as { template?: string }).template = undefined
+    }
+
     // Detect local agents on every run (informational unless --generate is set)
     const detected: DetectedAgent[] = await detectAgents()
     if (detected.length) {
@@ -163,21 +172,20 @@ export const newCommand = defineCommand({
       console.log(`  Detected agent: ${lead.name} — ${lead.detail}${tail}`)
     }
 
-    const requestedTemplate = templateArg ?? (promptText ? undefined : "todo")
+    const requestedTemplate = templateArg ?? (promptText ? undefined : "shopify")
     if (requestedTemplate && !getTemplate(requestedTemplate)) {
       console.error(`Unknown template: ${requestedTemplate}. Try --list-templates for the registry.`)
       process.exit(1)
     }
 
-    // With --generate, the agent rewrites both files from scratch. Skip the
-    // template lookup and scaffold a blank-canvas stub so the user's prompt
-    // drives 100% of the app instead of "template + agent overlay". The user
-    // can still force a starting template by passing --template explicitly.
-    const useStub = wantsGenerate && !templateArg
+    // With --generate or --template blank, the agent rewrites both files.
+    // Skip the template lookup and scaffold a blank-canvas stub so the
+    // user's prompt drives 100% of the app.
+    const useStub = (wantsGenerate && !templateArg) || isBlank
 
     const { template } = await copyTemplate({
       name,
-      templateName: requestedTemplate ?? "todo",
+      templateName: requestedTemplate ?? "shopify",
       initGit: Boolean(args.git),
       prompt: promptText,
       useStub,

@@ -207,7 +207,7 @@ export async function copyTemplate(
   // capsule + placeholder UI and let the agent design from scratch.
   const chosen: Template | null = o.useStub
     ? null
-    : o.prompt && (o.templateName === "todo" || !o.templateName)
+    : o.prompt && (o.templateName === "todo" || o.templateName === "shopify" || !o.templateName)
       ? pickTemplateForPrompt(o.prompt)
       : (getTemplate(o.templateName) ?? null)
 
