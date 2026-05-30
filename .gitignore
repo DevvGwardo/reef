@@ -1,0 +1,22 @@
+node_modules/
+dist/
+*.js
+*.d.ts
+*.d.ts.map
+*.js.map
+!.gitkeep
+!bin/reef.js
+!bin/reefsh.js
+!bin/reef-mcp.js
+
+# Secrets / local state — never commit. The deploy runbook (deploy/README.md,
+# deploy/upgrade.sh, docs/operations.md) assumes these are ignored.
+.env
+.env.reef.server
+.reef/
+deploy/cloudflared/config.yml
+deploy/cloudflared/credentials.json
+*.db
+*.sqlite
+*.sqlite3
+.claude/

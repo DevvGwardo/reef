@@ -1,0 +1,68 @@
+import { defineCommand } from "citty"
+import * as fs from "node:fs"
+import * as path from "node:path"
+import { serveBundleServer } from "../start-server.js"
+
+export const startCommand = defineCommand({
+  meta: {
+    name: "start",
+    description: "Start a deployed capsule bundle",
+  },
+  args: {
+    port: {
+      type: "string",
+      description: "Port to listen on",
+      default: "",
+    },
+  },
+  async run({ args }) {
+    const cwd = process.cwd()
+    const deployFile = path.join(cwd, ".reef", "deploy.json")
+
+    if (!fs.existsSync(deployFile)) {
+      console.error("No .reef/deploy.json found. Run `reef deploy` first.")
+      process.exit(1)
+    }
+
+    const deploy = JSON.parse(fs.readFileSync(deployFile, "utf-8")) as {
+      bundlePath?: string
+      clientPath?: string
+      port?: number
+      apiUrl?: string
+      url?: string
+      deployId?: string
+    }
+
+    const bundlePath = deploy.bundlePath ?? path.join(cwd, ".reef", "deploy-bundle.mjs")
+    const clientPath = deploy.clientPath ?? path.join(cwd, ".reef", "client.html")
+    const port =
+      typeof args.port === "string" && args.port
+        ? parseInt(args.port, 10)
+        : parseInt(process.env.PORT ?? "", 10) || deploy.port || 3000
+
+    if (!fs.existsSync(bundlePath)) {
+      if (deploy.apiUrl && deploy.url) {
+        console.error(`This capsule was deployed to a hosted control plane (${deploy.apiUrl}).`)
+        console.error(`It's already running at ${deploy.url}.`)
+        console.error(``)
+        console.error(`\`reef start\` only serves offline bundles built with \`reef deploy --local\`.`)
+        console.error(`To build an offline bundle and start it locally, run:`)
+        console.error(``)
+        console.error(`  reef deploy --local`)
+        console.error(`  reef start`)
+        process.exit(1)
+      }
+      console.error("No deploy bundle found. Run `reef deploy --local` first to build an offline bundle.")
+      process.exit(1)
+    }
+
+    await serveBundleServer({
+      bundlePath,
+      clientPath,
+      cwd,
+      port,
+    })
+
+    console.log(`\n  reef start server running at http://localhost:${port}\n`)
+  },
+})

@@ -1,0 +1,338 @@
+import { test } from "node:test"
+import assert from "node:assert/strict"
+import { execFile } from "node:child_process"
+import { promisify } from "node:util"
+import { mkdtempSync, rmSync, existsSync, readFileSync, mkdirSync, writeFileSync, readdirSync } from "node:fs"
+import { tmpdir } from "node:os"
+import * as path from "node:path"
+
+import { detectHermes, detectClaude, detectCodex, detectAgents, parseClaudeEvent } from "../src/detect-agents.js"
+
+const execFileP = promisify(execFile)
+const REPO_ROOT = path.resolve(import.meta.dirname, "..")
+const CLI_PATH = path.join(REPO_ROOT, "src", "cli.js")
+
+function tmp(prefix) {
+  return mkdtempSync(path.join(tmpdir(), prefix))
+}
+
+test("detectHermes finds the `hermes` CLI on PATH", async () => {
+  const result = await detectHermes({
+    which: (cmd) => (cmd === "hermes" ? "/usr/local/bin/hermes" : null),
+  })
+  assert.equal(result?.name, "hermes")
+  assert.equal(result?.detail, "/usr/local/bin/hermes")
+})
+
+test("detectHermes returns null when `hermes` isn't on PATH", async () => {
+  const result = await detectHermes({ which: () => null, existsSync: () => false })
+  assert.equal(result, null)
+})
+
+test("detectHermes ignores `hermes-agent` (chat REPL, not a usable CLI)", async () => {
+  const result = await detectHermes({
+    which: (cmd) => (cmd === "hermes-agent" ? "/opt/homebrew/bin/hermes-agent" : null),
+    existsSync: () => false,
+  })
+  assert.equal(result, null)
+})
+
+test("detectHermes finds Windows `pip install --user` install when not on PATH", async () => {
+  const home = "C:\\Users\\Admin"
+  const env = {
+    APPDATA: "C:\\Users\\Admin\\AppData\\Roaming",
+    LOCALAPPDATA: "C:\\Users\\Admin\\AppData\\Local",
+  }
+  const target = path.win32.join(env.APPDATA, "Python", "Python311", "Scripts", "hermes.exe")
+  const result = await detectHermes({
+    platform: "win32",
+    homedir: () => home,
+    env,
+    which: () => null,
+    existsSync: (p) => p === target,
+  })
+  assert.equal(result?.name, "hermes")
+  assert.equal(result?.detail, target)
+})
+
+test("detectHermes finds Windows pipx install when not on PATH", async () => {
+  const home = "C:\\Users\\Admin"
+  const env = {
+    APPDATA: "C:\\Users\\Admin\\AppData\\Roaming",
+    LOCALAPPDATA: "C:\\Users\\Admin\\AppData\\Local",
+  }
+  const target = path.win32.join(env.LOCALAPPDATA, "pipx", "venvs", "hermes-agent", "Scripts", "hermes.exe")
+  const result = await detectHermes({
+    platform: "win32",
+    homedir: () => home,
+    env,
+    which: () => null,
+    existsSync: (p) => p === target,
+  })
+  assert.equal(result?.detail, target)
+})
+
+test("detectHermes finds Windows conda install when not on PATH", async () => {
+  const home = "C:\\Users\\Admin"
+  const env = { APPDATA: "C:\\X", LOCALAPPDATA: "C:\\Y" }
+  const target = path.win32.join(home, "miniconda3", "Scripts", "hermes.exe")
+  const result = await detectHermes({
+    platform: "win32",
+    homedir: () => home,
+    env,
+    which: () => null,
+    existsSync: (p) => p === target,
+  })
+  assert.equal(result?.detail, target)
+})
+
+test("detectHermes returns null on Windows when neither PATH nor known dirs match", async () => {
+  const result = await detectHermes({
+    platform: "win32",
+    homedir: () => "C:\\Users\\Admin",
+    env: { APPDATA: "C:\\X", LOCALAPPDATA: "C:\\Y" },
+    which: () => null,
+    existsSync: () => false,
+  })
+  assert.equal(result, null)
+})
+
+test("detectHermes finds Unix pipx fallback when not on PATH", async () => {
+  const home = "/home/dev"
+  const target = path.posix.join(home, ".local", "pipx", "venvs", "hermes-agent", "bin", "hermes")
+  const result = await detectHermes({
+    platform: "linux",
+    homedir: () => home,
+    which: () => null,
+    existsSync: (p) => p === target,
+  })
+  assert.equal(result?.detail, target)
+})
+
+test("detectClaude finds ~/.claude when present", async () => {
+  const home = tmp("home-claude-")
+  try {
+    mkdirSync(path.join(home, ".claude"), { recursive: true })
+    const result = await detectClaude({
+      homedir: () => home,
+      which: () => null,
+    })
+    assert.equal(result?.name, "claude")
+  } finally {
+    rmSync(home, { recursive: true, force: true })
+  }
+})
+
+test("detectClaude returns null when ~/.claude missing", async () => {
+  const home = tmp("home-no-claude-")
+  try {
+    const result = await detectClaude({ homedir: () => home, which: () => null })
+    assert.equal(result, null)
+  } finally {
+    rmSync(home, { recursive: true, force: true })
+  }
+})
+
+test("detectCodex finds ~/.codex/auth.json when present", async () => {
+  const home = tmp("home-codex-")
+  try {
+    mkdirSync(path.join(home, ".codex"), { recursive: true })
+    writeFileSync(path.join(home, ".codex", "auth.json"), "{}")
+    const result = await detectCodex({ homedir: () => home, which: () => null })
+    assert.equal(result?.name, "codex")
+  } finally {
+    rmSync(home, { recursive: true, force: true })
+  }
+})
+
+test("detectAgents returns hermes first when multiple present", async () => {
+  const home = tmp("home-multi-")
+  try {
+    mkdirSync(path.join(home, ".claude"), { recursive: true })
+    mkdirSync(path.join(home, ".codex"), { recursive: true })
+    writeFileSync(path.join(home, ".codex", "auth.json"), "{}")
+    const result = await detectAgents({
+      homedir: () => home,
+      which: (cmd) => (cmd === "hermes" ? "/usr/local/bin/hermes" : null),
+    })
+    assert.deepEqual(
+      result.map((r) => r.name),
+      ["hermes", "claude", "codex"],
+    )
+  } finally {
+    rmSync(home, { recursive: true, force: true })
+  }
+})
+
+test("parseClaudeEvent surfaces Edit tool with file_path target", () => {
+  const evt = {
+    type: "assistant",
+    message: {
+      content: [
+        { type: "tool_use", name: "Edit", input: { file_path: "server/index.ts", old_string: "x", new_string: "y" } },
+      ],
+    },
+  }
+  const out = parseClaudeEvent(evt)
+  assert.deepEqual(out, { kind: "tool", tool: "Edit", target: "server/index.ts" })
+})
+
+test("parseClaudeEvent surfaces Bash tool with command target", () => {
+  const evt = {
+    type: "assistant",
+    message: {
+      content: [{ type: "tool_use", name: "Bash", input: { command: "npm install", description: "Install deps" } }],
+    },
+  }
+  const out = parseClaudeEvent(evt)
+  assert.deepEqual(out, { kind: "tool", tool: "Bash", target: "npm install" })
+})
+
+test("parseClaudeEvent surfaces assistant text", () => {
+  const evt = {
+    type: "assistant",
+    message: { content: [{ type: "text", text: "I'll start by reading AGENTS.md" }] },
+  }
+  const out = parseClaudeEvent(evt)
+  assert.equal(out?.kind, "text")
+  assert.match(out?.text ?? "", /AGENTS\.md/)
+})
+
+test("parseClaudeEvent emits info on system init", () => {
+  const evt = { type: "system", subtype: "init", session_id: "abc" }
+  const out = parseClaudeEvent(evt)
+  assert.equal(out?.kind, "info")
+})
+
+test("parseClaudeEvent returns null for tool_result / unknown events", () => {
+  assert.equal(parseClaudeEvent({ type: "user", message: { content: [{ type: "tool_result", content: "ok" }] } }), null)
+  assert.equal(parseClaudeEvent({ type: "result", subtype: "success" }), null)
+  assert.equal(parseClaudeEvent(null), null)
+  assert.equal(parseClaudeEvent("garbage"), null)
+})
+
+test("`reef new --list-templates` lists 5+ templates", async () => {
+  const { stdout } = await execFileP(process.execPath, [CLI_PATH, "new", "--list-templates"], {
+    env: { ...process.env },
+    timeout: 10000,
+  })
+  for (const name of ["todo", "auth-app", "blog", "chat", "dashboard", "webhook-handler"]) {
+    assert.match(stdout, new RegExp(`\\b${name}\\b`), `missing template: ${name}`)
+  }
+})
+
+test("`reef new --template chat` scaffolds chat template", async () => {
+  const parent = tmp("reef-cli-chat-")
+  try {
+    await execFileP(process.execPath, [CLI_PATH, "new", "my-chat", "--no-git", "--template", "chat"], {
+      cwd: parent,
+      env: { ...process.env },
+      timeout: 30000,
+    })
+    const server = readFileSync(path.join(parent, "my-chat", "server", "index.ts"), "utf-8")
+    assert.match(server, /authorName/)
+  } finally {
+    rmSync(parent, { recursive: true, force: true })
+  }
+})
+
+test("`reef new <prompt>` heuristically picks chat for chat-y prompts", async () => {
+  const parent = tmp("reef-cli-heuristic-")
+  try {
+    await execFileP(
+      process.execPath,
+      [CLI_PATH, "new", "a", "realtime", "chat", "room", "for", "friends", "--no-git"],
+      { cwd: parent, env: { ...process.env }, timeout: 30000 },
+    )
+    const dirs = readdirSync(parent)
+    assert.ok(dirs.length === 1, `expected one scaffold dir, got: ${dirs.join(", ")}`)
+    const server = readFileSync(path.join(parent, dirs[0], "server", "index.ts"), "utf-8")
+    assert.match(server, /authorName/)
+  } finally {
+    rmSync(parent, { recursive: true, force: true })
+  }
+})
+
+test("copyTemplate({ useStub: true }) writes blank-canvas stubs, not a template", async () => {
+  const { copyTemplate } = await import("../src/template.js")
+  const { STUB_SERVER_TS } = await import("../src/templates.js")
+  const parent = tmp("reef-stub-")
+  const prev = process.cwd()
+  try {
+    process.chdir(parent)
+    const result = await copyTemplate({
+      name: "stub-cap",
+      templateName: "todo", // would normally win the heuristic
+      initGit: false,
+      prompt: "a habit tracker",
+      useStub: true,
+    })
+    assert.equal(result.template, null, "template should be null in stub mode")
+    const server = readFileSync(path.join(parent, "stub-cap", "server", "index.ts"), "utf-8")
+    assert.equal(server, STUB_SERVER_TS, "server file should be the stub verbatim")
+    const agents = readFileSync(path.join(parent, "stub-cap", "AGENTS.md"), "utf-8")
+    assert.match(agents, /empty stubs/, "AGENTS.md should tell the agent it's working from stubs")
+    // Stub mode is the headless --generate path: forbid dev-server / verification
+    // loops so claude doesn't burn 5–10 minutes curling localhost after writing code.
+    assert.match(agents, /Do NOT run `npm install`/, "stub AGENTS.md must forbid npm install")
+    assert.match(agents, /Do NOT run `npm run dev`/, "stub AGENTS.md must forbid dev server")
+    assert.match(agents, /Do NOT.*localhost:3000/i, "stub AGENTS.md must forbid localhost verification")
+    assert.doesNotMatch(
+      agents,
+      /verify the app works in a browser/,
+      "stub AGENTS.md must NOT tell the agent to browser-verify (headless path)",
+    )
+  } finally {
+    process.chdir(prev)
+    rmSync(parent, { recursive: true, force: true })
+  }
+})
+
+test("AGENTS.md for human-driven (non-stub) flow still nudges to run dev and verify", async () => {
+  const { copyTemplate } = await import("../src/template.js")
+  const parent = tmp("reef-human-agents-")
+  const prev = process.cwd()
+  try {
+    process.chdir(parent)
+    await copyTemplate({
+      name: "human-cap",
+      templateName: "todo",
+      initGit: false,
+      prompt: "a tracker for my hobbies",
+      useStub: false,
+    })
+    const agents = readFileSync(path.join(parent, "human-cap", "AGENTS.md"), "utf-8")
+    assert.match(agents, /verify the app works in a browser/, "human AGENTS.md should keep the verify nudge")
+    assert.doesNotMatch(agents, /Do NOT run `npm install`/, "human AGENTS.md should NOT carry stub-mode prohibitions")
+  } finally {
+    process.chdir(prev)
+    rmSync(parent, { recursive: true, force: true })
+  }
+})
+
+test("pickTemplateForPrompt picks todo for tracker-style prompts (broadened keywords)", async () => {
+  const { pickTemplateForPrompt } = await import("../src/templates.js")
+  for (const p of ["a habit tracker", "an expense tracker for roommates", "weekly journal"]) {
+    const t = pickTemplateForPrompt(p)
+    assert.equal(t.name, "todo", `expected todo for "${p}", got ${t.name}`)
+  }
+})
+
+test("`reef new` writes .cursor/rules and .claude/CLAUDE.md", async () => {
+  const parent = tmp("reef-cli-rules-")
+  try {
+    await execFileP(process.execPath, [CLI_PATH, "new", "rules-cap", "--no-git"], {
+      cwd: parent,
+      env: { ...process.env },
+      timeout: 30000,
+    })
+    const projDir = path.join(parent, "rules-cap")
+    assert.ok(existsSync(path.join(projDir, ".cursor", "rules", "reef.mdc")))
+    assert.ok(existsSync(path.join(projDir, ".claude", "CLAUDE.md")))
+    const rules = readFileSync(path.join(projDir, ".cursor", "rules", "reef.mdc"), "utf-8")
+    assert.match(rules, /alwaysApply/)
+    assert.match(rules, /Reef capsule contract/i)
+  } finally {
+    rmSync(parent, { recursive: true, force: true })
+  }
+})

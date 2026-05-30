@@ -1,0 +1,13 @@
+node_modules
+.reef
+.reef-host
+dist
+build
+*.js
+*.d.ts
+*.d.ts.map
+*.js.map
+package-lock.json
+docs/branding
+src/ide/built.ts
+src/dashboard/built.ts
