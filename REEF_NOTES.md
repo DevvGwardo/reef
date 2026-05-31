@@ -38,6 +38,24 @@ Reef is a Shopify-focused application platform forked from [Pond](https://github
 - `--template todo/auth-app/blog/chat/dashboard/webhook-handler` still works
 - Heuristic prompt matching still works (e.g. `reef new a chat room` picks the chat template)
 
+### `--template shopify-app` — embedded, App-Store-ready Shopify app
+A second Shopify template for building **public Shopify App Store apps** (the
+plain `shopify` template stays the single-store Custom App token quick-start).
+Scaffolds the full public-app lifecycle, all on reef — no runtime changes, no
+new deps (uses `node:crypto` + global `fetch`):
+- `GET /auth` + `GET /auth/callback` — OAuth (authorization code grant), HMAC-verified, CSRF state cookie
+- Multi-tenant per-shop token storage (`shops` table), not a hardcoded store
+- `GET /app` — embedded entry served with App Bridge + `frame-ancestors` CSP (runs in the admin iframe)
+- `GET /api/products` — example data path authenticated by the App Bridge **session token** (HS256 JWT verify)
+- `POST /webhooks/app/uninstalled` + `POST /webhooks/compliance` — HMAC-verified, mandatory GDPR topics
+- **Hybrid layout**: ships `shopify.app.toml` (Shopify CLI config) + an `extensions/` workspace + `README.md`.
+  Reef hosts the app backend/embedded UI; **extensions** are built with the Shopify CLI and deploy to
+  Shopify (not reef) — same Partner Dashboard app / `client_id`.
+- New env placeholders: `SHOPIFY_API_KEY`, `SHOPIFY_API_SECRET`, `SHOPIFY_APP_URL`, `SHOPIFY_SCOPES`
+- `Template.extraFiles` was added to the template system to ship the toml + extensions files
+- Verified end-to-end against the dev server (OAuth redirect, CSP/App Bridge embed, HMAC accept+reject);
+  covered by `test/shopify-app.test.mjs`
+
 ### ctx.shopify (inherited from Pond's Shopify implementation)
 - `ctx.shopify.graphql<T>(query, variables?)` always available
 - POST to `https://${SHOPIFY_SHOP}/admin/api/${API_VERSION}/graphql.json`
@@ -118,4 +136,4 @@ npm run build
 npm test   # or: node --test test/*.test.mjs
 ```
 
-All 218 tests pass.
+All 219 tests pass.

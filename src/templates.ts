@@ -5,6 +5,11 @@ export interface Template {
   serverTs: string
   clientTsx: string
   envExtra?: string
+  // Extra files to write into the scaffold, keyed by path relative to the
+  // project root (parent dirs are created). Used by templates that need more
+  // than server/client/env — e.g. the shopify-app template ships a
+  // shopify.app.toml + extensions/ workspace for the Shopify CLI.
+  extraFiles?: Record<string, string>
 }
 
 // Shared house style for every template:
@@ -783,7 +788,385 @@ export function App() {
 `,
 }
 
-export const TEMPLATES: Template[] = [SHOPIFY, TODO, AUTH_APP, BLOG, CHAT, DASHBOARD, WEBHOOK_HANDLER]
+// Public, App-Store-ready embedded Shopify app. Unlike the single-store
+// `shopify` template (manual Custom App token), this scaffolds the full
+// public-app lifecycle: OAuth install, multi-tenant per-shop tokens, an
+// App Bridge embedded UI, session-token-authed data, and the mandatory
+// GDPR compliance webhooks. Pairs with a Shopify-CLI extensions/ workspace.
+const SHOPIFY_APP: Template = {
+  name: "shopify-app",
+  description: "Embedded, App-Store-ready Shopify app — OAuth install, per-shop tokens, App Bridge, compliance webhooks.",
+  keywords: ["shopify app", "app store", "embedded", "oauth", "public app", "partner", "extension", "app bridge"],
+  envExtra: `# ── Shopify app (embedded, App Store ready) ──────────────────────
+# Create the app in your Partner Dashboard: https://partners.shopify.com
+# Then paste the Client ID / Client secret below and set your public URL.
+SHOPIFY_API_KEY=
+SHOPIFY_API_SECRET=
+# Public HTTPS URL of THIS app — your reef deploy URL, or a tunnel
+# (ngrok/cloudflared) in dev. Must match application_url in shopify.app.toml.
+SHOPIFY_APP_URL=
+# Access scopes (comma-separated) — must match shopify.app.toml.
+SHOPIFY_SCOPES=read_products
+# SHOPIFY_API_VERSION=2025-01
+`,
+  serverTs: `import { capsule, endpoint, json, text, string, table } from "reef/server";
+import { createHmac, timingSafeEqual } from "node:crypto";
+
+// ─────────────────────────────────────────────────────────────────────
+// Shopify embedded app — App Store ready.
+//
+// Full public-app lifecycle, all on reef:
+//   GET  /auth                       start OAuth (redirect merchant to Shopify)
+//   GET  /auth/callback              verify HMAC, exchange code -> per-shop token
+//   GET  /app                        embedded entry (App Bridge, in the admin)
+//   GET  /api/products               session-token-authed data for the embed
+//   POST /webhooks/app/uninstalled   forget the shop's token
+//   POST /webhooks/compliance        GDPR: customers/data_request, *_redact
+//
+// Setup (see README.md):
+//   1. Create the app in your Partner Dashboard (partners.shopify.com).
+//   2. Put SHOPIFY_API_KEY/SECRET + SHOPIFY_APP_URL in .env.reef.server.
+//   3. shopify app config link && shopify app deploy   (pushes config above)
+// ─────────────────────────────────────────────────────────────────────
+
+function timingEqual(a: string, b: string): boolean {
+  const ba = Buffer.from(a);
+  const bb = Buffer.from(b);
+  if (ba.length !== bb.length) return false;
+  return timingSafeEqual(ba, bb);
+}
+
+// Validate + normalize a shop domain. Rejects anything that is not a
+// well-formed <name>.myshopify.com (guards against open-redirect / SSRF).
+function normShop(input: string): string | null {
+  const shop = (input || "").trim().toLowerCase();
+  if (!/^[a-z0-9][a-z0-9-]*\\.myshopify\\.com$/.test(shop)) return null;
+  return shop;
+}
+
+// Verify the HMAC on an OAuth redirect query (hex digest over sorted params).
+function verifyQueryHmac(q: Record<string, string>, secret: string): boolean {
+  if (!q.hmac) return false;
+  const message = Object.keys(q)
+    .filter((k) => k !== "hmac" && k !== "signature")
+    .sort()
+    .map((k) => k + "=" + q[k])
+    .join("&");
+  const digest = createHmac("sha256", secret).update(message).digest("hex");
+  return timingEqual(digest, q.hmac);
+}
+
+// Verify a webhook HMAC (base64 digest over the RAW request body).
+function verifyWebhookHmac(raw: Buffer, header: string | null, secret: string): boolean {
+  if (!header) return false;
+  const digest = createHmac("sha256", secret).update(raw).digest("base64");
+  return timingEqual(digest, header);
+}
+
+// Verify an App Bridge session token (JWT, HS256 signed with the API secret).
+// Returns the shop domain on success, else null. See Shopify "session tokens".
+function verifySessionToken(token: string, apiKey: string, secret: string): string | null {
+  const parts = (token || "").split(".");
+  if (parts.length !== 3) return null;
+  const expected = createHmac("sha256", secret).update(parts[0] + "." + parts[1]).digest("base64url");
+  if (!timingEqual(expected, parts[2])) return null;
+  let payload: any;
+  try {
+    payload = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8"));
+  } catch {
+    return null;
+  }
+  const now = Math.floor(Date.now() / 1000);
+  if (typeof payload.exp === "number" && payload.exp < now) return null;
+  if (typeof payload.nbf === "number" && payload.nbf > now) return null;
+  if (payload.aud !== apiKey) return null;
+  const dest = String(payload.dest || "").replace(/^https?:\\/\\//, "").replace(/\\/.*$/, "");
+  return normShop(dest);
+}
+
+function redirect(location: string) {
+  return text("", { status: 302, headers: { Location: location } });
+}
+
+function adminGraphql(shop: string, token: string, apiVersion: string, q: string) {
+  return fetch("https://" + shop + "/admin/api/" + apiVersion + "/graphql.json", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Shopify-Access-Token": token },
+    body: JSON.stringify({ query: q }),
+  });
+}
+
+export default capsule({
+  schema: {
+    // One row per store that installs the app — multi-tenant token storage.
+    shops: table({
+      shop: string(),
+      accessToken: string(),
+      scope: string(),
+    }),
+  },
+
+  queries: {},
+  mutations: {},
+
+  endpoints: {
+    // ── 1. Start OAuth ──────────────────────────────────────────────
+    install: endpoint({ method: "GET", path: "/auth" }, async (ctx, req) => {
+      const shop = normShop(req.query.shop || "");
+      if (!shop) return text("Missing or invalid ?shop=<name>.myshopify.com", { status: 400 });
+      const key = ctx.env.SHOPIFY_API_KEY;
+      const appUrl = (ctx.env.SHOPIFY_APP_URL || "").replace(/\\/$/, "");
+      const scopes = ctx.env.SHOPIFY_SCOPES || "read_products";
+      if (!key || !appUrl) return text("Set SHOPIFY_API_KEY and SHOPIFY_APP_URL in .env.reef.server.", { status: 500 });
+      const state = createHmac("sha256", ctx.env.SHOPIFY_API_SECRET || "s").update(shop + ":" + Date.now()).digest("hex");
+      const authUrl =
+        "https://" + shop + "/admin/oauth/authorize?client_id=" + encodeURIComponent(key) +
+        "&scope=" + encodeURIComponent(scopes) +
+        "&redirect_uri=" + encodeURIComponent(appUrl + "/auth/callback") +
+        "&state=" + encodeURIComponent(state);
+      const res = redirect(authUrl);
+      res.headers["Set-Cookie"] = "reef_oauth_state=" + state + "; Path=/; HttpOnly; SameSite=Lax; Max-Age=600";
+      return res;
+    }),
+
+    // ── 2. OAuth callback: verify, exchange code, store per-shop token ─
+    callback: endpoint({ method: "GET", path: "/auth/callback" }, async (ctx, req) => {
+      const q = req.query;
+      const secret = ctx.env.SHOPIFY_API_SECRET || "";
+      const key = ctx.env.SHOPIFY_API_KEY || "";
+      const shop = normShop(q.shop || "");
+      if (!shop) return text("Invalid shop", { status: 400 });
+      if (!verifyQueryHmac(q, secret)) return text("HMAC verification failed", { status: 401 });
+      const cookie = req.headers.get("cookie") || "";
+      const m = cookie.match(/reef_oauth_state=([^;]+)/);
+      if (!m || !q.state || !timingEqual(m[1], q.state)) return text("State mismatch", { status: 401 });
+      const tokenRes = await fetch("https://" + shop + "/admin/oauth/access_token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ client_id: key, client_secret: secret, code: q.code }),
+      });
+      if (!tokenRes.ok) return text("Token exchange failed", { status: 502 });
+      const tok: any = await tokenRes.json();
+      const existing = ctx.db.shops.where("shop", shop).all()[0];
+      if (existing) ctx.db.shops.update(existing.id, { accessToken: tok.access_token, scope: tok.scope || "" });
+      else ctx.db.shops.insert({ shop, accessToken: tok.access_token, scope: tok.scope || "" });
+      ctx.log.info("shopify install", { shop });
+      const host = q.host ? "&host=" + encodeURIComponent(q.host) : "";
+      return redirect("/app?shop=" + encodeURIComponent(shop) + host);
+    }),
+
+    // ── 3. Embedded entry — runs inside the Shopify admin iframe ───────
+    app: endpoint({ method: "GET", path: "/app" }, async (ctx, req) => {
+      const shop = normShop(req.query.shop || "");
+      const key = ctx.env.SHOPIFY_API_KEY || "";
+      if (!shop) return text("Open this app from your Shopify admin.", { status: 400 });
+      // App Bridge requires the page be frameable by the admin + the shop.
+      const csp = "frame-ancestors https://" + shop + " https://admin.shopify.com;";
+      const html =
+        "<!doctype html><html><head><meta charset=utf-8>" +
+        "<meta name=viewport content=\\"width=device-width,initial-scale=1\\">" +
+        "<script src=\\"https://cdn.shopify.com/shopifycloud/app-bridge.js\\" data-api-key=\\"" + key + "\\"></script>" +
+        "<title>App</title></head>" +
+        "<body style=\\"font-family:system-ui;margin:0;padding:24px;color:#111\\">" +
+        "<h1 style=\\"font-size:20px;margin:0 0 4px\\">Products</h1>" +
+        "<div id=status style=\\"color:#666;font-size:13px\\">Loading...</div>" +
+        "<ul id=list style=\\"margin:16px 0 0;padding-left:18px;font-size:14px;line-height:1.7\\"></ul>" +
+        "<script>" +
+        "(async function(){" +
+        "var s=document.getElementById('status');" +
+        "try{" +
+        "var t=await shopify.idToken();" +
+        "var r=await fetch('/api/products',{headers:{Authorization:'Bearer '+t}});" +
+        "if(!r.ok){s.textContent='Error '+r.status;return;}" +
+        "var d=await r.json();" +
+        "s.textContent=d.products.length+' product(s)';" +
+        "var ul=document.getElementById('list');" +
+        "d.products.forEach(function(p){var li=document.createElement('li');li.textContent=p.title+' ('+p.status+')';ul.appendChild(li);});" +
+        "}catch(e){s.textContent='Failed: '+e.message;}" +
+        "})();" +
+        "</script></body></html>";
+      return { body: html, status: 200, headers: { "Content-Type": "text/html; charset=utf-8", "Content-Security-Policy": csp } };
+    }),
+
+    // ── 4. Data for the embed — authenticated by the App Bridge token ──
+    products: endpoint({ method: "GET", path: "/api/products" }, async (ctx, req) => {
+      const auth = req.headers.get("authorization") || "";
+      const token = auth.replace(/^Bearer /i, "");
+      const shop = verifySessionToken(token, ctx.env.SHOPIFY_API_KEY || "", ctx.env.SHOPIFY_API_SECRET || "");
+      if (!shop) return json({ error: "Invalid session token" }, { status: 401 });
+      const row = ctx.db.shops.where("shop", shop).all()[0];
+      if (!row) return json({ error: "Shop not installed" }, { status: 404 });
+      const apiVersion = ctx.env.SHOPIFY_API_VERSION || "2025-01";
+      const res = await adminGraphql(shop, row.accessToken, apiVersion, "{ products(first: 20) { edges { node { id title status } } } }");
+      const body: any = await res.json();
+      if (!res.ok || body.errors) return json({ error: "Shopify API error" }, { status: 502 });
+      const products = body.data.products.edges.map(function (e: any) { return e.node; });
+      return json({ products });
+    }),
+
+    // ── 5. App uninstalled — forget the shop's token ──────────────────
+    uninstalled: endpoint({ method: "POST", path: "/webhooks/app/uninstalled" }, async (ctx, req) => {
+      const raw = Buffer.from(await req.bytes());
+      if (!verifyWebhookHmac(raw, req.headers.get("x-shopify-hmac-sha256"), ctx.env.SHOPIFY_API_SECRET || "")) {
+        return json({ error: "HMAC failed" }, { status: 401 });
+      }
+      const shop = normShop(req.headers.get("x-shopify-shop-domain") || "");
+      if (shop) {
+        const row = ctx.db.shops.where("shop", shop).all()[0];
+        if (row) ctx.db.shops.delete(row.id);
+      }
+      return json({ ok: true });
+    }),
+
+    // ── 6. Mandatory GDPR compliance webhooks ─────────────────────────
+    // Topics: customers/data_request, customers/redact, shop/redact.
+    // Shopify requires a 200 with a valid HMAC. Extend the handler to
+    // export/delete merchant + customer data as your data model grows.
+    compliance: endpoint({ method: "POST", path: "/webhooks/compliance" }, async (ctx, req) => {
+      const raw = Buffer.from(await req.bytes());
+      if (!verifyWebhookHmac(raw, req.headers.get("x-shopify-hmac-sha256"), ctx.env.SHOPIFY_API_SECRET || "")) {
+        return json({ error: "HMAC failed" }, { status: 401 });
+      }
+      ctx.log.info("shopify compliance webhook", { topic: req.headers.get("x-shopify-topic") || "" });
+      return json({ ok: true });
+    }),
+  },
+});
+`,
+  clientTsx: `// The "/" page is just a notice — the real UI is the embedded /app entry,
+// served by the capsule with App Bridge and rendered inside the Shopify admin.
+export function App() {
+  return (
+    <main class="min-h-screen bg-black px-6 py-16 font-sans text-white">
+      <section class="mx-auto max-w-xl">
+        <p class="font-mono text-xs uppercase tracking-[0.2em] text-neutral-500">reef / shopify app</p>
+        <h1 class="mt-3 text-4xl font-bold tracking-tight">Embedded Shopify app.</h1>
+        <p class="mt-4 text-sm leading-relaxed text-neutral-400">
+          This is the backend for a public, App-Store-ready Shopify app. The real UI runs
+          <span class="text-neutral-200"> embedded inside the Shopify admin</span> — open it from a
+          store that has installed the app, not here.
+        </p>
+        <div class="mt-8 border border-neutral-800 p-5">
+          <p class="font-mono text-xs uppercase tracking-widest text-neutral-500">Install (dev)</p>
+          <p class="mt-2 break-all font-mono text-sm text-emerald-400">/auth?shop=your-store.myshopify.com</p>
+          <p class="mt-3 text-xs leading-relaxed text-neutral-500">
+            Set SHOPIFY_API_KEY, SHOPIFY_API_SECRET and SHOPIFY_APP_URL in .env.reef.server first.
+            See README.md for the Partner Dashboard + Shopify CLI walkthrough.
+          </p>
+        </div>
+      </section>
+    </main>
+  );
+}
+`,
+  extraFiles: {
+    "shopify.app.toml": `# Shopify app configuration (read by the Shopify CLI).
+#
+# Declares the app's identity, scopes, OAuth redirect, and the mandatory
+# webhooks. The reef capsule in server/index.ts IMPLEMENTS the routes these
+# point at. The reef deploy URL is your public app URL.
+#
+# First-time setup:
+#   npm i -g @shopify/cli
+#   shopify app config link     # bind to your Partner Dashboard app
+#   shopify app deploy          # push this config (+ anything in extensions/)
+#
+# Replace application_url / redirect_urls with your reef deploy URL
+# (or a tunnel URL while developing locally).
+
+name = "my-shopify-app"
+client_id = ""
+application_url = "https://your-app.reef.app"
+embedded = true
+
+[access_scopes]
+scopes = "read_products"
+
+[auth]
+redirect_urls = [
+  "https://your-app.reef.app/auth/callback"
+]
+
+[webhooks]
+api_version = "2025-01"
+
+  [[webhooks.subscriptions]]
+  topics = [ "app/uninstalled" ]
+  uri = "/webhooks/app/uninstalled"
+
+  [[webhooks.subscriptions]]
+  compliance_topics = [ "customers/data_request", "customers/redact", "shop/redact" ]
+  uri = "/webhooks/compliance"
+
+[pos]
+embedded = false
+`,
+    "extensions/README.md": `# Extensions
+
+Shopify **extensions** (Checkout UI, Admin UI, Functions, Theme app extensions,
+POS UI) run on **Shopify's** infrastructure — not on reef. Generate them here
+with the Shopify CLI; they deploy to Shopify alongside this app's config:
+
+\`\`\`bash
+shopify app generate extension
+shopify app deploy
+\`\`\`
+
+The reef capsule in \`../server/index.ts\` is the app's **backend + embedded UI**.
+Extensions you add here share the same Partner Dashboard app (the same
+\`client_id\` in \`../shopify.app.toml\`) and can call this backend over HTTPS.
+`,
+    "README.md": `# Shopify app (embedded, App Store ready)
+
+A public Shopify app whose **backend + embedded admin UI** are hosted on reef,
+paired with a Shopify-CLI **extensions/** workspace for any Shopify-hosted
+extensions. One Partner Dashboard app drives both.
+
+\`\`\`
+this app (one client_id)
+├── server/index.ts + client/index.tsx   → hosted on REEF  (OAuth, webhooks, embed)
+├── shopify.app.toml                      → app config (Shopify CLI)
+└── extensions/                           → built w/ Shopify CLI, deployed to SHOPIFY
+\`\`\`
+
+## What reef gives you
+
+- \`GET /auth\` + \`GET /auth/callback\` — OAuth install, HMAC-verified, per-shop tokens
+- \`GET /app\` — embedded entry (App Bridge), framed inside the Shopify admin
+- \`GET /api/products\` — example data path, authenticated with the App Bridge session token
+- \`POST /webhooks/app/uninstalled\` and \`POST /webhooks/compliance\` — HMAC-verified
+
+## Setup
+
+1. **Create the app** in your Partner Dashboard (https://partners.shopify.com).
+   Copy the **Client ID** and **Client secret**.
+2. **Fill in env** — edit \`.env.reef.server\`:
+   \`\`\`
+   SHOPIFY_API_KEY=<client id>
+   SHOPIFY_API_SECRET=<client secret>
+   SHOPIFY_APP_URL=https://<your-reef-deploy>   # or a tunnel URL in dev
+   SHOPIFY_SCOPES=read_products
+   \`\`\`
+3. **Bind config** — \`npm i -g @shopify/cli && shopify app config link\`, then set
+   \`application_url\` / \`redirect_urls\` in \`shopify.app.toml\` to your app URL and
+   \`shopify app deploy\`.
+4. **Run it** — \`npm install && npm run dev\` (local), or \`reef deploy\` (hosted).
+   Install on a dev store by visiting \`/auth?shop=<store>.myshopify.com\`.
+
+## Notes
+
+- Local dev needs a public HTTPS URL Shopify can reach — use a tunnel
+  (\`cloudflared tunnel --url http://localhost:3000\`) and put it in
+  \`SHOPIFY_APP_URL\` + \`shopify.app.toml\`.
+- Outbound \`fetch\` is blocked on anonymous reef deploys; claim the deploy so
+  the OAuth + Admin API calls can reach Shopify.
+- Extensions are a Shopify-CLI concern — see \`extensions/README.md\`.
+`,
+    "extensions/.gitkeep": "",
+  },
+}
+
+export const TEMPLATES: Template[] = [SHOPIFY, SHOPIFY_APP, TODO, AUTH_APP, BLOG, CHAT, DASHBOARD, WEBHOOK_HANDLER]
 
 export function getTemplate(name: string): Template | null {
   return TEMPLATES.find((t) => t.name === name) ?? null

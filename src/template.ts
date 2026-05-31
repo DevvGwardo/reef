@@ -263,6 +263,14 @@ export async function copyTemplate(
   fs.writeFileSync(path.join(dir, ".env.reef.server"), envContents, { mode: 0o600 })
   fs.writeFileSync(path.join(dir, ".gitignore"), GITIGNORE)
 
+  // Templates may ship extra files (e.g. shopify-app's shopify.app.toml +
+  // extensions/ workspace). Paths are relative to the project root.
+  for (const [rel, contents] of Object.entries(chosen?.extraFiles ?? {})) {
+    const dest = path.join(dir, rel)
+    fs.mkdirSync(path.dirname(dest), { recursive: true })
+    fs.writeFileSync(dest, contents)
+  }
+
   // Always scaffold .cursor/rules + .claude/CLAUDE.md with the capsule contract
   // so any agent opening the folder picks up the rules. The AGENTS.md is only
   // written when a prompt was passed (i.e. the user wants a build kicked off).
