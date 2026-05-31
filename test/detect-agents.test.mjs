@@ -318,6 +318,12 @@ test("pickTemplateForPrompt picks todo for tracker-style prompts (broadened keyw
   }
 })
 
+test("pickTemplateForPrompt falls back to todo for generic prompts with no template keywords", async () => {
+  const { pickTemplateForPrompt } = await import("../src/templates.js")
+  const t = pickTemplateForPrompt("something small for my team")
+  assert.equal(t.name, "todo")
+})
+
 test("`reef new` writes .cursor/rules and .claude/CLAUDE.md", async () => {
   const parent = tmp("reef-cli-rules-")
   try {

@@ -11,6 +11,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.resolve(__dirname, "..")
 const DOCS = path.join(ROOT, "docs")
 const OUTPUT = path.join(DOCS, "llms-full.txt")
+const ROOT_README = path.join(ROOT, "README.md")
+const DOCS_README = path.join(DOCS, "README.md")
 
 const sources = [
   { path: "llms.txt", title: "Reef Docs Index" },
@@ -27,6 +29,15 @@ blocks.push(
 )
 blocks.push("")
 blocks.push("---")
+
+if (!fs.existsSync(ROOT_README)) {
+  console.error(`[build-llms] missing source: ${ROOT_README}`)
+  process.exit(1)
+}
+
+// Keep /docs/README.md live on the hosted docs surface without introducing a
+// second hand-edited copy. Several agent-facing references point there.
+fs.writeFileSync(DOCS_README, fs.readFileSync(ROOT_README, "utf-8"))
 
 for (const src of sources) {
   const abs = path.join(DOCS, src.path)

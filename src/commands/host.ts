@@ -524,7 +524,7 @@ export const hostCommand = defineCommand({
     },
     "anonymous-deploys": {
       type: "boolean",
-      description: "Allow unauthenticated POST /api/deploys (Lakebed-style)",
+      description: "Allow unauthenticated POST /api/deploys",
       default: true,
     },
     "anonymous-grace": {
@@ -667,7 +667,7 @@ export const hostCommand = defineCommand({
     const workerPath = path.resolve(import.meta.dirname, "../host/deploy-worker.js")
     const reefSrcDir = path.resolve(import.meta.dirname, "..")
     const reefNodeModulesDir = path.resolve(import.meta.dirname, "../../node_modules")
-    const pondDocsDir = path.resolve(import.meta.dirname, "../../docs")
+    const docsDir = path.resolve(import.meta.dirname, "../../docs")
 
     const anonymousEnabled = args["anonymous-deploys"] !== false
     const graceStr =
@@ -3413,7 +3413,7 @@ Canonical: ${publicBaseUrl ? publicBaseUrl.toString().replace(/\/$/, "") : `http
           }
           if (url.pathname === "/llms.txt" || url.pathname === "/llms-full.txt") {
             const filename = url.pathname.slice(1)
-            const abs = path.join(pondDocsDir, filename)
+            const abs = path.join(docsDir, filename)
             if (fs.existsSync(abs)) {
               return new Response(fs.readFileSync(abs), {
                 status: 200,
@@ -3437,7 +3437,7 @@ Canonical: ${publicBaseUrl ? publicBaseUrl.toString().replace(/\/$/, "") : `http
           if (docHtmlMatch) {
             const slug = docHtmlMatch[1]
             if (!DOCS_SLUG_RE.test(slug)) return c.json({ error: "Not found" }, 404)
-            const abs = path.join(pondDocsDir, `${slug}.md`)
+            const abs = path.join(docsDir, `${slug}.md`)
             if (fs.existsSync(abs) && fs.statSync(abs).isFile()) {
               const rendered = docsPageHtml(slug, fs.readFileSync(abs, "utf-8"))
               if (rendered) return c.html(rendered)
@@ -3446,7 +3446,7 @@ Canonical: ${publicBaseUrl ? publicBaseUrl.toString().replace(/\/$/, "") : `http
           }
           const docMatch = url.pathname.match(/^\/docs\/([a-zA-Z0-9_-]+\.md)$/)
           if (docMatch) {
-            const abs = path.join(pondDocsDir, docMatch[1])
+            const abs = path.join(docsDir, docMatch[1])
             if (fs.existsSync(abs) && fs.statSync(abs).isFile()) {
               return new Response(fs.readFileSync(abs), {
                 status: 200,

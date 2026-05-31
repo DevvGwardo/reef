@@ -39,16 +39,16 @@ Scaffold a new capsule directory. Accepts either a single slug (treated as a nam
 
 **Key flags:**
 
-- `--template <name>` — start from a named template instead of the default (shopify). Run `reef new --list-templates` to see them all. Use `--template blank` for a minimal stub scaffold.
+- `--template <name>` — start from a named template instead of the default (`todo`). Run `reef new --list-templates` to see them all. Use `--template blank` for a minimal stub scaffold.
 - `--generate` — after scaffolding, invoke the first detected local agent to implement the prompt. With this flag a blank-canvas stub is written and the agent drives the design end-to-end.
 - `--dir <name>` (alias `--name_flag`) — override the auto-derived directory name when passing a prompt.
 - `--no-git` — skip `git init` in the new directory.
 
 ```sh
-# Just a name → starts from the auto-picked template
+# Just a name → starts from the default local-first starter
 reef new my-app
 
-# A description → slugified to a dir, AGENTS.md captures the prompt
+# A description → slugified to a dir, best-matching template if one is obvious
 reef new "a kanban board with markdown cards"
 
 # Same prompt, but an agent writes the code right after scaffolding
