@@ -96,7 +96,7 @@ export const newCommand = defineCommand({
     },
     template: {
       type: "string",
-      description: "Template to use (default: 'shopify', use 'blank' for a minimal scaffold)",
+      description: "Template to use (default: 'todo', use 'blank' for a minimal scaffold)",
     },
     git: {
       type: "boolean",
@@ -172,7 +172,7 @@ export const newCommand = defineCommand({
       console.log(`  Detected agent: ${lead.name} — ${lead.detail}${tail}`)
     }
 
-    const requestedTemplate = templateArg ?? (promptText ? undefined : "shopify")
+    const requestedTemplate = templateArg ?? (promptText ? undefined : "todo")
     if (requestedTemplate && !getTemplate(requestedTemplate)) {
       console.error(`Unknown template: ${requestedTemplate}. Try --list-templates for the registry.`)
       process.exit(1)

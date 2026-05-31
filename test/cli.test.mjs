@@ -3,6 +3,7 @@ import assert from "node:assert/strict"
 import { spawn, execFile } from "node:child_process"
 import { promisify } from "node:util"
 import { mkdtempSync, rmSync, existsSync, readFileSync, mkdirSync, writeFileSync } from "node:fs"
+import { statSync } from "node:fs"
 import { tmpdir } from "node:os"
 import * as path from "node:path"
 import * as net from "node:net"
@@ -83,6 +84,36 @@ test("`reef new` scaffolds expected files", async () => {
   // .env.reef.server should have a generated session secret comment
   const env = readFileSync(path.join(projDir, ".env.reef.server"), "utf-8")
   assert.match(env, /REEF_SESSION_SECRET=[a-f0-9]{32,}/)
+})
+
+test("docs build publishes docs/README.md as the hosted raw README artifact", () => {
+  const rootReadme = readFileSync(path.join(REPO_ROOT, "README.md"), "utf-8")
+  const docsReadme = readFileSync(path.join(REPO_ROOT, "docs", "README.md"), "utf-8")
+  assert.equal(docsReadme, rootReadme)
+})
+
+test("packaged bin entrypoints are executable on posix", () => {
+  if (process.platform === "win32") return
+  for (const rel of ["bin/reef.js", "bin/reefsh.js", "bin/reef-mcp.js"]) {
+    const mode = statSync(path.join(REPO_ROOT, rel)).mode & 0o111
+    assert.notEqual(mode, 0, `${rel} should have at least one executable bit set`)
+  }
+})
+
+test("`reef new <slug>` defaults to the local-first starter, not the Shopify template", async () => {
+  const parent = tmp("reef-cli-default-template-")
+  const name = "starter-cap"
+  await execFileP(process.execPath, [CLI_PATH, "new", name, "--no-git"], {
+    cwd: parent,
+    env: { ...process.env },
+    timeout: 30000,
+  })
+  const projDir = path.join(parent, name)
+  const server = readFileSync(path.join(projDir, "server", "index.ts"), "utf-8")
+  const env = readFileSync(path.join(projDir, ".env.reef.server"), "utf-8")
+  assert.match(server, /messages:\s*table\(/)
+  assert.doesNotMatch(server, /ctx\.shopify\.graphql/)
+  assert.doesNotMatch(env, /SHOPIFY_SHOP=|SHOPIFY_TOKEN=/)
 })
 
 test("`reef new` refuses to overwrite an existing directory", async () => {
@@ -204,6 +235,75 @@ test("`reef dev` boots, serves /api/query, and exits cleanly on SIGINT", async (
     proc.exitCode === 0 || proc.signalCode === "SIGINT" || proc.exitCode === null,
     `dev exited unexpectedly: code=${proc.exitCode}, signal=${proc.signalCode}, stderr=${stderrBuf.slice(-300)}`,
   )
+})
+
+test("`reef dev` rebuilds when a shared/ module changes", async () => {
+  const parent = tmp("reef-cli-dev-shared-")
+  await execFileP(process.execPath, [CLI_PATH, "new", "cap-shared", "--no-git"], {
+    cwd: parent,
+    timeout: 30000,
+  })
+  const projDir = path.join(parent, "cap-shared")
+  mkdirSync(path.join(projDir, "shared"), { recursive: true })
+  writeFileSync(
+    path.join(projDir, "shared", "message.ts"),
+    `export const message = "hello from shared v1"\n`,
+  )
+  writeFileSync(
+    path.join(projDir, "server", "index.ts"),
+    `import { capsule, query } from "reef/server"
+import { message } from "../shared/message"
+
+export default capsule({
+  schema: {},
+  queries: {
+    message: query(() => message),
+  },
+  mutations: {},
+})
+`,
+  )
+
+  const port = await pickFreePort()
+  const proc = spawn(process.execPath, [CLI_PATH, "dev", "--port", String(port)], {
+    cwd: projDir,
+    env: { ...process.env },
+    stdio: ["ignore", "pipe", "pipe"],
+  })
+  cleanupProcs.push(proc)
+  proc.stdout.on("data", () => {})
+  proc.stderr.on("data", () => {})
+
+  try {
+    await waitForUrl(`http://127.0.0.1:${port}/api/query/message`, 15000)
+    let res = await fetch(`http://127.0.0.1:${port}/api/query/message`)
+    assert.equal(res.status, 200)
+    assert.equal(await res.json(), "hello from shared v1")
+
+    writeFileSync(
+      path.join(projDir, "shared", "message.ts"),
+      `export const message = "hello from shared v2"\n`,
+    )
+
+    const start = Date.now()
+    let value = null
+    while (Date.now() - start < 15000) {
+      res = await fetch(`http://127.0.0.1:${port}/api/query/message`)
+      if (res.ok) {
+        value = await res.json()
+        if (value === "hello from shared v2") break
+      }
+      await new Promise((r) => setTimeout(r, 150))
+    }
+    assert.equal(value, "hello from shared v2")
+  } finally {
+    const exited = new Promise((r) => proc.once("exit", r))
+    proc.kill("SIGINT")
+    const t = setTimeout(() => proc.kill("SIGKILL"), 4000)
+    t.unref()
+    await exited
+    clearTimeout(t)
+  }
 })
 
 // Sanity smoke that the dev server's loopback guard rejects non-loopback

@@ -39,6 +39,7 @@ export async function startDevServer(requestedPort: number): Promise<void> {
   const cwd = process.cwd()
   const serverFile = path.join(cwd, "server", "index.ts")
   const clientFile = path.join(cwd, "client", "index.tsx")
+  const sharedDir = path.join(cwd, "shared")
   const envFile = path.join(cwd, ".env.reef.server")
 
   if (!fs.existsSync(serverFile)) {
@@ -264,7 +265,7 @@ export async function startDevServer(requestedPort: number): Promise<void> {
   }
 
   chokidar
-    .watch([serverFile, clientFile, envFile], {
+    .watch([serverFile, clientFile, sharedDir, envFile], {
       ignoreInitial: true,
     })
     .on("change", (changedPath) => {
@@ -274,6 +275,28 @@ export async function startDevServer(requestedPort: number): Promise<void> {
       }
       if (changedPath === envFile) {
         scheduleRebuild("env")
+        return
+      }
+      scheduleRebuild("server")
+    })
+    .on("add", (changedPath) => {
+      if (changedPath === envFile) {
+        scheduleRebuild("env")
+        return
+      }
+      if (changedPath === clientFile) {
+        scheduleRebuild("client")
+        return
+      }
+      scheduleRebuild("server")
+    })
+    .on("unlink", (changedPath) => {
+      if (changedPath === envFile) {
+        scheduleRebuild("env")
+        return
+      }
+      if (changedPath === clientFile) {
+        scheduleRebuild("client")
         return
       }
       scheduleRebuild("server")

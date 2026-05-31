@@ -35,15 +35,15 @@ COPY --from=builder /app/docs ./docs
 COPY README.md LICENSE ./
 
 ENV NODE_ENV=production
-ENV POND_HOST_DATA_DIR=/data
+ENV REEF_HOST_DATA_DIR=/data
 
 # Run as the unprivileged `node` user (uid 1000) rather than root, so a capsule
 # that escapes the Node sandbox lands as a non-root user with no caps.
 RUN mkdir -p /data && chown -R node:node /app /data
-COPY deploy/pond-entrypoint.sh /usr/local/bin/pond-entrypoint.sh
-RUN chmod +x /usr/local/bin/pond-entrypoint.sh
+COPY deploy/reef-entrypoint.sh /usr/local/bin/reef-entrypoint.sh
+RUN chmod +x /usr/local/bin/reef-entrypoint.sh
 # NOTE: no `VOLUME` instruction — Railway rejects it (use Railway Volumes); the
-# docker-compose path mounts the `pond-data` volume at /data instead.
+# docker-compose path mounts the `reef-data` volume at /data instead.
 # Stay root so the entrypoint can chown the (root-owned) volume mount; it then
 # drops to `node` via gosu before exec'ing the control plane.
 
@@ -51,7 +51,7 @@ EXPOSE 8787
 
 # tini (PID 1) reaps forked workers; the entrypoint fixes /data perms + drops
 # privileges to `node`.
-ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/pond-entrypoint.sh"]
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/reef-entrypoint.sh"]
 
 # Sane defaults; override at run time (compose env / Railway startCommand).
 CMD ["node", "/app/src/cli.js", "host", \

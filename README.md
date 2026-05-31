@@ -1,9 +1,9 @@
 # Reef
 
 <p align="center">
-  <strong>Build & host small Shopify-connected apps.</strong><br />
-  Token-based Shopify Admin API access. No OAuth, no Partner registration.<br />
-  Scaffold a capsule, set your store token, and start querying products in minutes.
+  <strong>Build & host small full-stack TypeScript apps.</strong><br />
+  Local-first by default, with built-in Shopify support when you need it.<br />
+  Scaffold a capsule, run it locally in minutes, and deploy it when it is ready.
 </p>
 
 <p align="center">
@@ -91,8 +91,10 @@ Open `http://localhost:3000`.
 
 ### Shopify quickstart
 
+Use the Shopify starter explicitly:
+
 ```bash
-npx reefsh new my-shopify-app
+npx reefsh new my-shopify-app --template shopify
 cd my-shopify-app
 ```
 
@@ -141,7 +143,7 @@ npx reefsh new "a dashboard for hermes-agent"
 
 Pass `--dir my-app` to override the auto-slugged directory name. Reef itself doesn't call any remote LLM — `--generate` only invokes whatever local agent CLI is on your `$PATH`. After the agent finishes, `npm run dev` and `reef deploy --api …` work normally; the IDE URL lets you keep iterating in the browser.
 
-### Anonymous hosted deploy (Lakebed-style)
+### Anonymous hosted deploy
 
 If a public Reef host is running (e.g. `reef.example.com`), you can ship anonymously without an account:
 
@@ -164,7 +166,7 @@ reef claim --signup <username>
 
 ### Self-host the control plane
 
-See [`docs/operations.md`](./docs/operations.md) for the full Lakebed-style launch runbook (Oracle Always Free + Cloudflare Tunnel + Cloudflare DNS, ~$10/yr total). Deploy files in [`deploy/`](./deploy/).
+See [`docs/operations.md`](./docs/operations.md) for the full self-hosting launch runbook (Oracle Always Free + Cloudflare Tunnel + Cloudflare DNS, ~$10/yr total). Deploy files in [`deploy/`](./deploy/).
 
 ## Developer Loop
 
@@ -184,7 +186,7 @@ Reef will:
 - create `.reef/data.db`
 - create tables from the capsule schema
 - bundle the Preact client and serve an HTML shell
-- watch `server/index.ts`, `client/index.tsx`, and `.env.reef.server`
+- watch `server/index.ts`, `client/index.tsx`, `shared/`, and `.env.reef.server`
 - push reload events over `/__reef_reload`
 
 <p align="center">
@@ -337,7 +339,7 @@ reef login --api http://localhost:8787 --token <bob-token> --username bob
 
 Each deploy is owned by the user that created it. Admins can manage any deploy. The legacy claim token in `.reef/deploy.json` still works for cross-machine ownership transfer via `reef claim`.
 
-### Anonymous deploys (Lakebed-style)
+### Anonymous deploys
 
 `reef deploy --api <url>` without saved credentials creates a hosted deploy with no account attached. The control plane returns a URL and a claim token (saved to `.reef/deploy.json`). Claim it later by running either:
 

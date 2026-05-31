@@ -1,7 +1,7 @@
 {
   "name": "reefsh",
   "version": "0.4.5",
-  "description": "Agent-native CLI and runtime for building small full-stack TypeScript apps. Hosted Lakebed-style anonymous deploys included.",
+  "description": "Agent-native CLI and runtime for building small full-stack TypeScript apps, with hosted anonymous deploys included.",
   "license": "MIT",
   "homepage": "https://github.com/DevvGwardo/reef#readme",
   "bugs": {
@@ -23,9 +23,11 @@
     "./client": "./client/index.js"
   },
   "files": [
-    "bin/",
-    "src/",
-    "client/",
+    "bin/*.js",
+    "src/**/*.js",
+    "src/**/*.d.ts",
+    "client/index.js",
+    "client/index.d.ts",
     "docs/*.md",
     "docs/*.txt"
   ],

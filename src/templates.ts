@@ -1215,5 +1215,5 @@ export function pickTemplateForPrompt(prompt: string): Template {
     return { t, score }
   })
   scores.sort((a, b) => b.score - a.score)
-  return scores[0].score > 0 ? scores[0].t : SHOPIFY
+  return scores[0].score > 0 ? scores[0].t : TODO
 }
