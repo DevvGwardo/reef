@@ -795,7 +795,8 @@ export function App() {
 // GDPR compliance webhooks. Pairs with a Shopify-CLI extensions/ workspace.
 const SHOPIFY_APP: Template = {
   name: "shopify-app",
-  description: "Embedded, App-Store-ready Shopify app — OAuth install, per-shop tokens, App Bridge, compliance webhooks.",
+  description:
+    "Embedded, App-Store-ready Shopify app — OAuth install, per-shop tokens, App Bridge, compliance webhooks.",
   keywords: ["shopify app", "app store", "embedded", "oauth", "public app", "partner", "extension", "app bridge"],
   envExtra: `# ── Shopify app (embedded, App Store ready) ──────────────────────
 # Create the app in your Partner Dashboard: https://partners.shopify.com

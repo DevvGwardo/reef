@@ -7,30 +7,33 @@ Reef is a Shopify-focused application platform forked from [Pond](https://github
 ## What changed vs Pond
 
 ### Fork source
+
 - Forked from Pond commit `6e410bb` (feat/shopify-capsule branch), May 30, 2026
 - Pond repo: `/Users/devgwardo/pond` (left untouched)
 - Reef repo: `/Users/devgwardo/reef` (self-contained, own git history)
 
 ### Brand rename (whole-identifier only, never substrings)
-| Before | After |
-|--------|-------|
-| CLI: `pond` | `reef` |
-| Package: `pondsh` | `reefsh` |
-| Bin: `bin/pond.js` | `bin/reef.js` |
-| Bin: `bin/pondsh.js` | `bin/reefsh.js` |
-| Bin: `bin/pond-mcp.js` | `bin/reef-mcp.js` |
-| Public host: `pond.run` | `reef.app` |
-| Env prefix: `POND_` | `REEF_` |
-| State dir: `.pond` | `.reef` |
-| Credentials dir: `~/.pond` | `~/.reef` |
-| Env file: `.env.pond.server` | `.env.reef.server` |
-| Internal table prefix: `_pond_` | `_reef_` |
-| Route prefix: `/__pond/` | `/__reef/` |
-| Prometheus prefix: `pond_route_` | `reef_route_` |
-| Service names: `pond-host`, `pond-cgroup`, etc. | `reef-host`, `reef-cgroup` |
+
+| Before                                            | After                              |
+| ------------------------------------------------- | ---------------------------------- |
+| CLI: `pond`                                       | `reef`                             |
+| Package: `pondsh`                                 | `reefsh`                           |
+| Bin: `bin/pond.js`                                | `bin/reef.js`                      |
+| Bin: `bin/pondsh.js`                              | `bin/reefsh.js`                    |
+| Bin: `bin/pond-mcp.js`                            | `bin/reef-mcp.js`                  |
+| Public host: `pond.run`                           | `reef.app`                         |
+| Env prefix: `POND_`                               | `REEF_`                            |
+| State dir: `.pond`                                | `.reef`                            |
+| Credentials dir: `~/.pond`                        | `~/.reef`                          |
+| Env file: `.env.pond.server`                      | `.env.reef.server`                 |
+| Internal table prefix: `_pond_`                   | `_reef_`                           |
+| Route prefix: `/__pond/`                          | `/__reef/`                         |
+| Prometheus prefix: `pond_route_`                  | `reef_route_`                      |
+| Service names: `pond-host`, `pond-cgroup`, etc.   | `reef-host`, `reef-cgroup`         |
 | Internal vars: `pondSrcDir`, `pondNodeModulesDir` | `reefSrcDir`, `reefNodeModulesDir` |
 
 ### Default template: Shopify (not Todo)
+
 - `reef new <name>` scaffolds a Shopify-connected capsule by default
 - `products` query calling `ctx.shopify.graphql()` with a Preact product-table UI
 - `.env.reef.server` includes `SHOPIFY_SHOP=`, `SHOPIFY_TOKEN=`, `SHOPIFY_API_VERSION=` placeholders
@@ -39,10 +42,12 @@ Reef is a Shopify-focused application platform forked from [Pond](https://github
 - Heuristic prompt matching still works (e.g. `reef new a chat room` picks the chat template)
 
 ### `--template shopify-app` — embedded, App-Store-ready Shopify app
+
 A second Shopify template for building **public Shopify App Store apps** (the
 plain `shopify` template stays the single-store Custom App token quick-start).
 Scaffolds the full public-app lifecycle, all on reef — no runtime changes, no
 new deps (uses `node:crypto` + global `fetch`):
+
 - `GET /auth` + `GET /auth/callback` — OAuth (authorization code grant), HMAC-verified, CSRF state cookie
 - Multi-tenant per-shop token storage (`shops` table), not a hardcoded store
 - `GET /app` — embedded entry served with App Bridge + `frame-ancestors` CSP (runs in the admin iframe)
@@ -57,6 +62,7 @@ new deps (uses `node:crypto` + global `fetch`):
   covered by `test/shopify-app.test.mjs`
 
 ### ctx.shopify (inherited from Pond's Shopify implementation)
+
 - `ctx.shopify.graphql<T>(query, variables?)` always available
 - POST to `https://${SHOPIFY_SHOP}/admin/api/${API_VERSION}/graphql.json`
 - API_VERSION defaults to `2025-01`, overridable via `SHOPIFY_API_VERSION`
@@ -66,6 +72,7 @@ new deps (uses `node:crypto` + global `fetch`):
 - Unit tested (9 tests in `test/shopify.test.mjs`)
 
 ### Security posture
+
 - Outbound network blocked for anonymous deploys, allowed for claimed deploys (inherited from Pond)
 - Shopify queries fail at runtime on anonymous deploys until claimed and env is set
 - No sandbox/permission/network hardening was weakened
@@ -74,10 +81,12 @@ new deps (uses `node:crypto` + global `fetch`):
 ## File map of new/edited files vs Pond
 
 New to Reef (not in Pond):
+
 - `scripts/rename-pond-to-reef.py` — migration/rebranding script (one-time use)
 - `REEF_NOTES.md` — this file
 
 Modified from Pond:
+
 - All source files in `src/`, `bin/`, `client/` — branded from pond→reef
 - `package.json` — name, bin entries, description, keywords
 - `test/*.test.mjs` — CLI name updates, template selection updates
@@ -86,9 +95,11 @@ Modified from Pond:
 - `.gitignore` — state dir, bin entries, env file
 
 Removed:
+
 - `SHOPIFY_CAPSULE_NOTES.md` (Pond-specific; content absorbed into this file)
 
 Unchanged from Pond:
+
 - Entire architecture (control-plane, worker isolation, subdomain routing, browser IDE, env/secret management, quota, auth, MCP server)
 - All dependencies in `package.json`
 - `tsconfig.json`

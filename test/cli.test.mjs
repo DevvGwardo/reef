@@ -245,10 +245,7 @@ test("`reef dev` rebuilds when a shared/ module changes", async () => {
   })
   const projDir = path.join(parent, "cap-shared")
   mkdirSync(path.join(projDir, "shared"), { recursive: true })
-  writeFileSync(
-    path.join(projDir, "shared", "message.ts"),
-    `export const message = "hello from shared v1"\n`,
-  )
+  writeFileSync(path.join(projDir, "shared", "message.ts"), `export const message = "hello from shared v1"\n`)
   writeFileSync(
     path.join(projDir, "server", "index.ts"),
     `import { capsule, query } from "reef/server"
@@ -280,10 +277,7 @@ export default capsule({
     assert.equal(res.status, 200)
     assert.equal(await res.json(), "hello from shared v1")
 
-    writeFileSync(
-      path.join(projDir, "shared", "message.ts"),
-      `export const message = "hello from shared v2"\n`,
-    )
+    writeFileSync(path.join(projDir, "shared", "message.ts"), `export const message = "hello from shared v2"\n`)
 
     const start = Date.now()
     let value = null
