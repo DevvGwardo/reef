@@ -7,11 +7,11 @@
 </p>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/DevvGwardo/reef-assets/main/reef-title.png" alt="Reef title image" width="100%" />
+  <img src="branding/reef-title.png" alt="Reef title image" width="100%" />
 </p>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/DevvGwardo/reef-assets/main/reef-agent-flow.png" alt="Reef agent flow diagram" width="100%" />
+  <img src="branding/reef-agent-flow.png" alt="Reef agent flow diagram" width="100%" />
 </p>
 
 <p align="center">
@@ -67,7 +67,7 @@ export default capsule({
 ```
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/DevvGwardo/reef-assets/main/reef-capsule-anatomy.png" alt="Reef capsule anatomy diagram" width="100%" />
+  <img src="branding/reef-capsule-anatomy.png" alt="Reef capsule anatomy diagram" width="100%" />
 </p>
 
 That one definition becomes:
@@ -148,7 +148,7 @@ Pass `--dir my-app` to override the auto-slugged directory name. Reef itself doe
 If a public Reef host is running (e.g. `reef.example.com`), you can ship anonymously without an account:
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/DevvGwardo/reef-assets/main/reef-deploy-claim.png" alt="Reef anonymous deploy and claim flow diagram" width="100%" />
+  <img src="branding/reef-deploy-claim.png" alt="Reef anonymous deploy and claim flow diagram" width="100%" />
 </p>
 
 ```bash
@@ -190,7 +190,7 @@ Reef will:
 - push reload events over `/__reef_reload`
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/DevvGwardo/reef-assets/main/reef-workflow.png" alt="Reef workflow image" width="100%" />
+  <img src="branding/reef-workflow.png" alt="Reef workflow image" width="100%" />
 </p>
 
 ## CLI
@@ -221,7 +221,7 @@ Reef will:
 ## Runtime Model
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/DevvGwardo/reef-assets/main/reef-how-it-works.png" alt="How Reef works diagram" width="100%" />
+  <img src="branding/reef-how-it-works.png" alt="How Reef works diagram" width="100%" />
 </p>
 
 At runtime, Reef does four things:
@@ -307,7 +307,7 @@ These power the CLI inspection commands and make local capsules easy to inspect 
 Reef ships a self-hostable control plane that fronts multiple capsule deploys behind a single ingress, manages user accounts and per-deploy ownership, and isolates each deploy in its own forked worker process.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/DevvGwardo/reef-assets/main/reef-control-plane.png" alt="Reef self-hosted control plane diagram" width="100%" />
+  <img src="branding/reef-control-plane.png" alt="Reef self-hosted control plane diagram" width="100%" />
 </p>
 
 ### Threat model

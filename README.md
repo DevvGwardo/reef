@@ -1,50 +1,65 @@
-# Reef
-
 <p align="center">
-  <strong>Build & host small full-stack TypeScript apps.</strong><br />
-  Local-first by default, with built-in Shopify support when you need it.<br />
-  Scaffold a capsule, run it locally in minutes, and deploy it when it is ready.
+  <img src="docs/repo-banner.svg" alt="Reef — Agent-native capsules" width="100%" />
 </p>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/DevvGwardo/reef-assets/main/reef-title.png" alt="Reef title image" width="100%" />
-</p>
-
-<p align="center">
-  <img src="https://raw.githubusercontent.com/DevvGwardo/reef-assets/main/reef-agent-flow.png" alt="Reef agent flow diagram" width="100%" />
-</p>
-
-<p align="center">
-  <strong>Agent-native full-stack TypeScript capsules, now with built-in Shopify.</strong><br />
-  Scaffold a small app, define your schema and handlers in one file, and run it locally with a built-in Hono + SQLite runtime.<br />
-  Every capsule gets `ctx.shopify.graphql()` — call the Shopify Admin API from your server handlers.
-</p>
-
-<p align="center">
-  <img alt="Node 18+" src="https://img.shields.io/badge/node-%3E%3D18-16351f?style=flat-square" />
+  <a href="https://www.npmjs.com/package/reefsh"><img alt="npm" src="https://img.shields.io/npm/v/reefsh?style=flat-square&color=00cc6a" /></a>
+  <img alt="Node 18+" src="https://img.shields.io/badge/node-%3E%3D18-0a1628?style=flat-square" />
   <img alt="TypeScript" src="https://img.shields.io/badge/typescript-first-0f172a?style=flat-square" />
   <img alt="Runtime" src="https://img.shields.io/badge/runtime-hono%20%2B%20sqlite-10243f?style=flat-square" />
   <img alt="Client" src="https://img.shields.io/badge/client-preact-2a163c?style=flat-square" />
+  <img alt="License" src="https://img.shields.io/badge/license-MIT-334155?style=flat-square" />
 </p>
 
-Reef is an open-source, agent-native CLI and runtime for building small full-stack TypeScript apps called capsules. It is designed around a tight inner loop:
+<p align="center">
+  <strong>Agent-native CLI and runtime for small full-stack TypeScript apps.</strong><br />
+  <span>Define your schema and handlers in one file, run locally with zero config, deploy when ready — with built-in Shopify when you need it.</span>
+</p>
 
-1. `reef new` scaffolds a capsule.
-2. You define schema, queries, mutations, and endpoints in `server/index.ts`.
-3. `reef dev` compiles the capsule, provisions SQLite automatically, bundles the client, and serves the app.
+<p align="center">
+  <a href="#quickstart">Quickstart</a> ·
+  <a href="#what-a-capsule-looks-like">Capsule</a> ·
+  <a href="#cli">CLI</a> ·
+  <a href="docs/api-reference.md">Server API</a> ·
+  <a href="docs/client-reference.md">Client API</a> ·
+  <a href="docs/operations.md">Operations</a> ·
+  <a href="docs/mcp.md">MCP</a>
+</p>
 
-The current runtime is optimized for local development and alpha workflows: fast scaffolding, zero-config SQLite, simple auth, live reload, and inspection endpoints that make capsules easy to reason about.
+---
+
+## What is Reef
+
+Reef builds **capsules** — small, full-stack TypeScript apps with a single-file server definition:
+
+- **Schema, queries, mutations, and endpoints** live together in `server/index.ts`
+- **SQLite** is auto-provisioned — tables are created from your schema, no migrations
+- **Hono** serves generated routes: `GET /api/query/*` and `POST /api/mutation/*`
+- **Preact** on the client — `useQuery`, `useMutation`, and `useAuth` with no extra plumbing
+- **Every capsule gets `ctx.shopify.graphql()`** for the Shopify Admin API when you need it
+
+Reef is open-source and designed for a tight inner loop:
+
+1. `reef new` — scaffold a capsule
+2. Define your capsule in `server/index.ts`
+3. `reef dev` — compile, provision SQLite, bundle the client, serve with live reload
+
+<p align="center">
+  <img src="docs/repo-architecture.svg" alt="Reef capsule architecture" width="90%" />
+</p>
 
 ## Why Reef
 
-- Single-file server model. Schema, queries, mutations, and endpoints live together in the capsule definition.
-- Built-in local runtime. Reef compiles the server with esbuild, mounts routes on Hono, and auto-creates SQLite tables.
-- No manual client plumbing. Preact hooks talk to generated query and mutation routes directly.
-- Agent-friendly workflow. The CLI is small, inspectable, and easy for coding agents to scaffold against. `reef new a dashboard for X` writes an `AGENTS.md` that the agent reads on first open.
-- Real dev ergonomics. Live reload, guest identity switching, DB inspection, logs, and a deploy bundle path are already built in.
-- Browser-based IDE for hosted capsules. After `reef deploy --api …`, open the returned `/ide/<id>` URL to edit `server/`, `client/`, and `shared/` files, see build diagnostics, and preview the live capsule without leaving the page.
+| | |
+|---|---|
+| **Single-file server model** | Schema, queries, mutations, and endpoints in one capsule definition — no scattered files |
+| **Zero-config local runtime** | esbuild + Hono + SQLite auto-creation; tables, routes, and typed contexts generated for you |
+| **No client plumbing** | Preact hooks call generated routes directly — no API client to write |
+| **Agent-friendly by design** | Small CLI, inspectable contracts, `AGENTS.md` scaffolding — `reef new "a dashboard for X"` writes the brief and an agent fills it in |
+| **Real dev ergonomics** | Live reload, guest identity switching, DB inspection, structured logs, and a deploy bundle path built in |
+| **Browser IDE for hosted capsules** | After `reef deploy`, open `/ide/<id>` to edit `server/`, `client/`, and `shared/` with live diagnostics |
 
-## What A Capsule Looks Like
+## What a Capsule Looks Like
 
 ```ts
 import { capsule, mutation, query, string, table } from "reef/server"
@@ -67,15 +82,17 @@ export default capsule({
 ```
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/DevvGwardo/reef-assets/main/reef-capsule-anatomy.png" alt="Reef capsule anatomy diagram" width="100%" />
+  <img src="docs/branding/reef-capsule-anatomy.png" alt="Reef capsule anatomy" width="100%" />
 </p>
 
 That one definition becomes:
 
-- a SQLite-backed `messages` table
+- a SQLite-backed `messages` table (auto-created)
 - `GET /api/query/messages`
 - `POST /api/mutation/sendMessage`
-- a typed server runtime context with `db`, `auth`, `env`, and `log`
+- a typed runtime context with `db`, `auth`, `env`, `log`, and `shopify`
+
+---
 
 ## Quickstart
 
@@ -91,82 +108,75 @@ Open `http://localhost:3000`.
 
 ### Shopify quickstart
 
-Use the Shopify starter explicitly:
-
 ```bash
 npx reefsh new my-shopify-app --template shopify
 cd my-shopify-app
 ```
 
-Then edit `.env.reef.server` with your store credentials:
+Edit `.env.reef.server`:
 
 ```
 SHOPIFY_SHOP=my-store.myshopify.com
 SHOPIFY_TOKEN=***
 ```
 
-Then:
-
 ```bash
 npm install && npm run dev
 ```
 
-Open `http://localhost:3000` to see your products listed. See [docs/api-reference.md](docs/api-reference.md#ctxshopify) for the full `ctx.shopify.graphql()` reference.
+Products are listed at `http://localhost:3000`. See [`docs/api-reference.md`](docs/api-reference.md#ctxshopify) for `ctx.shopify.graphql()`.
 
-Prefer a global install? `npm install -g reefsh` then use `reef new …` and `reef dev` directly.
+> Prefer a global install? `npm install -g reefsh` — then use `reef` directly.
 
-#### Windows
+### Let an agent build it
 
-The CLI runs on Windows (PowerShell or Terminal) the same way — `npx reefsh …` or a global `reef` install. Two notes:
-
-- `reef new` and `reef fork` run `git init` for the scaffold, so install [Git for Windows](https://git-scm.com/download/win) (or pass `--no-git`).
-- `reef new … --generate` shells out to a local agent CLI (`claude`/`codex`/`hermes`); those are picked up from your `PATH` including `.cmd` shims and per-user Python script dirs.
-
-`reef host` (running your own control plane) is Linux-only — it relies on `fork`, the Node permission sandbox, and cgroups. On Windows you deploy _to_ a host (e.g. `reef.app`) rather than running one.
-
-### Or: describe what you want and let an agent build it
-
-Anything you type after `reef new` that isn't a single slug is treated as a build prompt. Pass `--generate` to hand the brief to a local coding agent (`hermes`, `claude`, or `codex` — whichever is installed) and have it design the capsule for you:
+Anything after `reef new` that isn't a single slug is a build prompt. With `--generate`, Reef hands it to a local agent (`hermes`, `claude`, or `codex`):
 
 ```bash
-npx reefsh new "a habit tracker that is inspired by twitch" --generate
-# → creates ./habit-tracker-that-is-inspired-by-twitch/
-# → writes AGENTS.md + .claude/CLAUDE.md with your prompt + the capsule contract
-# → invokes the local agent headlessly to fill in server/ + client/
+npx reefsh new "a habit tracker inspired by twitch" --generate
+# → creates ./habit-tracker-inspired-by-twitch/
+# → writes AGENTS.md + .claude/CLAUDE.md with the brief + capsule contract
+# → invokes the local agent headlessly to build server/ + client/
 ```
 
-Without `--generate`, reef just scaffolds the stub + `AGENTS.md` and you open it in Claude Code / Cursor yourself:
+Without `--generate`, the stub + `AGENTS.md` is scaffolded for you to open in Claude Code / Cursor:
 
 ```bash
 npx reefsh new "a dashboard for hermes-agent"
 ```
 
-Pass `--dir my-app` to override the auto-slugged directory name. Reef itself doesn't call any remote LLM — `--generate` only invokes whatever local agent CLI is on your `$PATH`. After the agent finishes, `npm run dev` and `reef deploy --api …` work normally; the IDE URL lets you keep iterating in the browser.
+Use `--dir my-app` to override the auto-slugged directory, `--no-git` to skip `git init`.
+
+#### Windows
+
+`reef new` and `reef fork` run `git init` — install [Git for Windows](https://git-scm.com/download/win) or pass `--no-git`. `reef host` (self-hosting the control plane) is Linux-only.
+
+> Reef never calls a remote LLM — `--generate` only invokes whatever agent CLI is on your `PATH`.
 
 ### Anonymous hosted deploy
 
-If a public Reef host is running (e.g. `reef.example.com`), you can ship anonymously without an account:
-
 <p align="center">
-  <img src="https://raw.githubusercontent.com/DevvGwardo/reef-assets/main/reef-deploy-claim.png" alt="Reef anonymous deploy and claim flow diagram" width="100%" />
+  <img src="docs/branding/reef-deploy-claim.png" alt="Anonymous deploy and claim flow" width="100%" />
 </p>
 
+If a public Reef host is running (e.g. `reef.app`):
+
 ```bash
-reef deploy --api https://reef.example.com
-# → returns a URL like https://abc123def4567890.reef.example.com
-# → prints an IDE URL: https://reef.example.com/ide/abc123…#token=<claim>
-# → returns a one-time claim token saved to .reef/deploy.json
+reef deploy --api https://reef.app
+# → https://abc123def4567890.reef.app
+# → IDE: https://reef.app/ide/abc123…#token=<claim>
+# → claim token saved to .reef/deploy.json (valid 7 days)
 ```
 
-The deploy lives for 7 days. Claim it to keep it:
+Claim it to keep it:
 
 ```bash
 reef claim --signup <username>
 ```
 
-### Self-host the control plane
+See [`docs/operations.md`](docs/operations.md) to self-host on Oracle Always Free + Cloudflare Tunnel (~$10/yr).
 
-See [`docs/operations.md`](./docs/operations.md) for the full self-hosting launch runbook (Oracle Always Free + Cloudflare Tunnel + Cloudflare DNS, ~$10/yr total). Deploy files in [`deploy/`](./deploy/).
+---
 
 ## Developer Loop
 
@@ -180,300 +190,116 @@ reef dev
 Reef will:
 
 - scaffold `server/index.ts`, `client/index.tsx`, `shared/`, and `.env.reef.server`
-- scaffold a capsule `package.json` with local `reef` scripts
-- initialize a git repository by default
-- compile the capsule server with esbuild
-- create `.reef/data.db`
-- create tables from the capsule schema
+- initialize a git repository
+- compile the capsule with esbuild and create `.reef/data.db` + tables
 - bundle the Preact client and serve an HTML shell
-- watch `server/index.ts`, `client/index.tsx`, `shared/`, and `.env.reef.server`
-- push reload events over `/__reef_reload`
+- watch `server/index.ts`, `client/index.tsx`, `shared/`, and `.env.reef.server` — push reloads over `/__reef_reload`
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/DevvGwardo/reef-assets/main/reef-workflow.png" alt="Reef workflow image" width="100%" />
+  <img src="docs/branding/reef-workflow.png" alt="Reef workflow" width="100%" />
 </p>
 
 ## CLI
 
-| Command                                    | Purpose                                                                  |
-| ------------------------------------------ | ------------------------------------------------------------------------ |
-| `reef new <name>`                          | Scaffold a new capsule from a template                                   |
-| `reef new <free-form description...>`      | Scaffold + write `AGENTS.md` so an agent can build the described capsule |
-| `reef dev --port 3000`                     | Run the local dev server                                                 |
-| `reef deploy`                              | Anonymous deploy to https://reef.app — prints a live URL + claim token   |
-| `reef deploy --api <url>`                  | Upload to a different control plane (e.g. self-hosted)                   |
-| `reef deploy --local`                      | Build a standalone server bundle for `reef start` instead of uploading   |
-| `reef claim`                               | Cross-machine claim using a deploy's claim token                         |
-| `reef start`                               | Start the bundled deploy artifact locally                                |
-| `reef host`                                | Start the self-hosted Reef control plane                                 |
-| `reef inspect`                             | Inspect local capsule metadata                                           |
-| `reef logs`                                | Stream structured local logs                                             |
-| `reef db list`                             | List SQLite tables from a running capsule                                |
-| `reef db dump [table]`                     | Dump one table or the full local database                                |
-| `reef auth as <name>`                      | Set the current dev guest identity                                       |
-| `reef login --api <url> --username <name>` | Bootstrap first admin (needs `REEF_HOST_TOKEN`) or attach with `--token` |
-| `reef dashboard`                           | Open the project dashboard for the current control plane in a browser    |
-| `reef user create <name> [--admin]`        | Create a new control-plane user (admin only)                             |
-| `reef env list/set/unset <deployId>`       | Manage hosted-deploy server env vars                                     |
-| `reef domains list/add/remove <subdomain>` | Manage custom subdomain aliases for a deploy                             |
-| `reef token rotate --api <url>`            | Rotate the saved user API token                                          |
+| Command | Purpose |
+|---|---|
+| `reef new <name>` | Scaffold a new capsule from a template |
+| `reef new <description...>` | Scaffold + write `AGENTS.md` for an agent to build |
+| `reef new <desc> --generate` | Scaffold and invoke a local agent headlessly |
+| `reef dev --port 3000` | Run the local dev server with live reload |
+| `reef deploy` | Deploy to `reef.app` — prints live URL + claim token |
+| `reef deploy --api <url>` | Deploy to a different host (e.g. self-hosted) |
+| `reef deploy --local` | Build a standalone bundle for `reef start` |
+| `reef claim` | Claim an anonymous deploy with its token |
+| `reef start` | Start a locally bundled deploy artifact |
+| `reef host` | Start the self-hosted control plane (Linux) |
+| `reef inspect` | Inspect local capsule metadata |
+| `reef logs` | Stream structured local logs |
+| `reef db list` | List SQLite tables from a running capsule |
+| `reef db dump [table]` | Dump one table or the full database |
+| `reef auth as <name>` | Set the current dev guest identity |
+| `reef login --api <url> --username <name>` | Bootstrap first admin or attach with `--token` |
+| `reef dashboard` | Open the control-plane dashboard in a browser |
+| `reef user create <name> [--admin]` | Create a control-plane user (admin only) |
+| `reef env list/set/unset <deployId>` | Manage hosted-deploy env vars |
+| `reef domains list/add/remove <subdomain>` | Manage custom subdomain aliases |
+| `reef token rotate --api <url>` | Rotate the saved API token |
+
+Full reference: [`docs/cli-reference.md`](docs/cli-reference.md)
 
 ## Runtime Model
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/DevvGwardo/reef-assets/main/reef-how-it-works.png" alt="How Reef works diagram" width="100%" />
+  <img src="docs/branding/reef-how-it-works.png" alt="How Reef works" width="100%" />
 </p>
 
-At runtime, Reef does four things:
+At runtime, Reef:
 
-1. Bundles `server/index.ts` into a temporary ESM module.
-2. Imports the capsule definition and creates SQLite tables from `schema`.
-3. Resolves auth per request from the session cookie, falling back to a guest user when no session exists.
-4. Mounts generated routes and any custom endpoints onto a Hono server.
+1. Bundles `server/index.ts` into a temporary ESM module
+2. Imports the capsule definition and creates SQLite tables from `schema`
+3. Resolves auth per request from the session cookie (guest fallback when none)
+4. Mounts generated routes and custom endpoints onto a Hono server
 
-The client runtime exposes:
+**Client runtime:**
 
-- `useQuery<T>(name)`
-- `useMutation<TArgs, TResult>(name)`
-- `useAuth()`
-- `SignInWithGoogle`
-- `signOut()`
+- `useQuery<T>(name)` — typed queries
+- `useMutation<TArgs, TResult>(name)` — typed mutations
+- `useAuth()` — current user + session
+- `SignInWithGoogle` / `signOut()` — auth
 
-## For coding agents
+**Server context (`ctx`):** `db` · `auth` · `env` · `log` · `shopify`
 
-If you are a coding agent reading this and the user just asked you to build a reef capsule, fetch one of these and follow it:
+## For Coding Agents
 
-- `https://reef.app/llms.txt` — the agent docs index (small)
-- `https://reef.app/llms-full.txt` — full server + client reference in one fetch (~15 KB)
-- `https://reef.app/docs/api-reference.md` — server (`reef/server`)
-- `https://reef.app/docs/client-reference.md` — client (`reef/client`)
+If an agent is reading this after `reef new "…"`:
 
-Hard rules for a reef capsule:
+- Fetch `https://reef.app/llms.txt` (index) or `https://reef.app/llms-full.txt` (full reference, ~15 KB)
+- Or locally: [`docs/api-reference.md`](docs/api-reference.md) (server) and [`docs/client-reference.md`](docs/client-reference.md) (client)
 
-- `server/index.ts` imports only from `reef/server`, plain relative TypeScript, and Node built-ins. No arbitrary npm packages.
-- `client/index.tsx` imports only from `reef/client`. Preact + Tailwind classes; do not bring in React, react-router, react-query, etc.
-- Every `server/index.ts` ends with `export default capsule({ ... })`.
-- Every `client/index.tsx` exports a component named `App`.
-- Authorization is your responsibility inside handlers (filter by `ctx.auth.userId`; re-check ownership on update / delete).
-- Do not delete `server/index.ts` or `package.json`. They are required.
+**Hard rules — a valid capsule:**
 
-When you scaffold a capsule via `reef new "<description>"`, the CLI writes an `AGENTS.md` + `.claude/CLAUDE.md` that already point at these URLs.
+- `server/index.ts` imports only from `reef/server`, plain relative TypeScript, and Node built-ins — no arbitrary npm packages
+- `client/index.tsx` imports only from `reef/client` — Preact + Tailwind, no React Router / react-query
+- Every `server/index.ts` ends with `export default capsule({ ... })`
 
-## Authentication
-
-Reef supports guest mode and Google OAuth in the local runtime.
-
-Built-in auth routes:
-
-- `GET /auth/google`
-- `GET /auth/google/callback`
-- `GET /auth/me`
-- `POST /auth/signout`
-
-Users are persisted to `_reef_users`. If no session cookie is present, the request is treated as a guest request and still has access to the capsule unless your own handlers restrict it.
-
-Environment variables live in `.env.reef.server`:
-
-```bash
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
-GOOGLE_REDIRECT_URI=http://localhost:3000/auth/google/callback
 ```
-
-If `GOOGLE_REDIRECT_URI` is omitted, Reef defaults it to the current dev port.
-
-## Inspection And Debugging
-
-When running locally, Reef exposes internal inspection endpoints:
-
-- `GET /__reef/db/tables`
-- `GET /__reef/db/dump/:table`
-- `GET /__reef/logs`
-- `GET /__reef/inspect`
-- `POST /__reef/auth/guest`
-
-These power the CLI inspection commands and make local capsules easy to inspect without wiring separate admin tooling.
-
-## Deploy Bundles
-
-`reef deploy` has two modes:
-
-**Hosted (default).** Uploads the source tree (`server/`, `client/`, `shared/`, `package.json`) to a control plane — `https://reef.app` by default, or whatever was used on the previous deploy of this capsule, or `--api <url>` for a self-hosted host. The host runs esbuild server-side, stores both the source and the produced bundle, forks a worker, and returns the deploy URL + claim token + IDE URL. The on-server source is what backs the browser IDE — edits made in the IDE go through `/api/deploys/:id/files/*` and trigger a server-side rebuild on Deploy.
-
-**Local (`--local`).** Bundles the capsule server to `.reef/deploy-bundle.mjs`, writes `.reef/deploy.json` with a generated deploy ID + bundle hash. Use `reef start` to serve the bundle. Use this for airgapped/self-host scenarios where you want to ship the bundle yourself.
-
-## Hosted control plane (self-hosted MVP)
-
-Reef ships a self-hostable control plane that fronts multiple capsule deploys behind a single ingress, manages user accounts and per-deploy ownership, and isolates each deploy in its own forked worker process.
+server/index.ts → Hono + SQLite  →  /api/query/*  +  /api/mutation/*
+client/index.tsx → Preact + hooks  →  calls generated routes
+shared/          →  shared types + helpers (optional)
+```
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/DevvGwardo/reef-assets/main/reef-control-plane.png" alt="Reef self-hosted control plane diagram" width="100%" />
+  <img src="docs/branding/reef-agent-flow.png" alt="Agent flow — from prompt to running capsule" width="100%" />
 </p>
 
-### Threat model
+See also: [`docs/mcp.md`](docs/mcp.md) for the `reef-mcp` Model Context Protocol server.
 
-The hosted control plane is intended for **trusted deployers** (you and your team). Isolation between deploys is V8-level (one Node child process per deploy) — not OS-level. Sibling deploys run under the same UID and can read each other's files. Do **not** host untrusted third-party code on a single reef host yet.
+---
 
-### Bootstrap quickstart
+## Hosting & Operations
 
-```bash
-# 1. Start the control plane (binds 127.0.0.1:8787 by default)
-reef host --port 8787
+### Self-host the control plane
 
-# 2. Note the bootstrap token printed in the log, then create the first admin
-REEF_HOST_TOKEN=<that-token> reef login --api http://localhost:8787 --username admin
+Full runbook: [`docs/operations.md`](docs/operations.md) — Oracle Always Free + Cloudflare Tunnel + Cloudflare DNS. Deploy files in [`deploy/`](deploy/).
 
-# 3. Deploy a capsule from any project directory
-reef deploy --api http://localhost:8787
-```
-
-### Multi-user
-
-```bash
-# As admin, mint a token for bob
-reef user create bob --api http://localhost:8787
-
-# On bob's machine, attach to that account
-reef login --api http://localhost:8787 --token <bob-token> --username bob
-```
-
-Each deploy is owned by the user that created it. Admins can manage any deploy. The legacy claim token in `.reef/deploy.json` still works for cross-machine ownership transfer via `reef claim`.
-
-### Anonymous deploys
-
-`reef deploy --api <url>` without saved credentials creates a hosted deploy with no account attached. The control plane returns a URL and a claim token (saved to `.reef/deploy.json`). Claim it later by running either:
-
-```bash
-reef claim --signup <username>          # create a new account on the host
-# or
-reef login --api <url> --username <name>
-reef claim                              # attach to your existing account
-```
-
-**Two-phase TTL.** An unclaimed anonymous deploy goes through two cleanup phases:
-
-- **Grace** (`REEF_ANONYMOUS_CLEANUP_GRACE`, default `1h`, also `--anonymous-grace`) — after this, the worker is terminated. The disk contents are kept, the deploy id stays valid, and claiming it (with `reef claim`) re-forks the worker.
-- **Retention** (`REEF_ANONYMOUS_CLEANUP_RETENTION`, default `7d`, also `--anonymous-retention`) — after this, the deploy directory and all its data are deleted.
-
-The sweeper runs every 60s and at host startup.
-
-**Rate limit.** Anonymous `POST /api/deploys` is limited to 5 per IP per rolling hour (`--anonymous-rate-per-hour`). The window is persisted in the control DB, so the limit survives a host restart. Disable anonymous deploys entirely with `--anonymous-deploys=false`. If the host runs behind a reverse proxy, set `REEF_TRUST_PROXY_HEADERS=1` (or `--trust-proxy`) so the rate limit keys on `x-forwarded-for` rather than the proxy's address.
-
-**Anonymous quotas (smaller than the defaults).**
-
-| Field            | Default | Anonymous |
-| ---------------- | ------- | --------- |
-| `maxBundleBytes` | 64 MB   | 16 MB     |
-| `maxDiskBytes`   | 512 MB  | 128 MB    |
-| `maxMemoryMb`    | 256     | 128       |
-
-**Sandbox (Node 22+).** Anonymous workers are spawned with Node's experimental permission model:
-
-- `--experimental-permission`
-- `--allow-fs-read=<deploy dir>` + `--allow-fs-read=<reef src dir>` + `--allow-fs-read=<reef node_modules>`
-- `--allow-fs-write=<deploy dir>`
-- `--allow-addons` (required so better-sqlite3 can load — Node warns about this)
-
-In addition, three things are patched at boot to block outbound network: `globalThis.fetch`, best-effort `undici.fetch`, and `net.Socket.prototype.connect` (which closes `node:http`, `node:https`, and `tls.connect`, all of which go through `net.Socket`). All four throw `Outbound network access disabled for anonymous deploys`. This is **defense-in-depth, not an airtight sandbox** — a capsule that ships a native module could bypass the JS-layer patch entirely, and `dns.lookup` still resolves names. The point is to make the common case (an anonymous deploy that calls out to the internet) fail loudly. For real network isolation, run the host behind an outbound-blocking firewall (iptables/pf). Authenticated deploys are NOT subject to the permission model or the network shims. On Node < 22, the permission model is disabled (host logs a warning at startup) but the network shims still apply.
-
-**What anonymous deploys cannot do:**
-
-- `PUT /api/deploys/:id` — must claim before updating the bundle.
-- `PUT /api/deploys/:id/env` — env upload is blocked at the API level. `reef deploy --push-env` errors out without uploading.
-- Outbound `fetch` from inside the capsule (see above).
-
-### Browser IDE
-
-Every hosted deploy ships with a browser-based IDE at `<api>/ide/<deployId>`. After `reef deploy --api …`, the CLI prints the URL (with a one-time `#token=` fragment for anonymous deploys). Open it in a browser and you get:
-
-- A file tree over `server/`, `client/`, `shared/`, `package.json`.
-- A multi-tab CodeMirror editor (TypeScript / TSX / JSON / Markdown).
-- An outline of tables, queries, and mutations parsed from `server/index.ts`.
-- A live preview iframe of the deploy.
-- A **Deploy** button that saves all dirty files, re-runs esbuild server-side, hot-swaps the worker, and refreshes the preview. esbuild diagnostics render with file / line / column in the right pane.
-
-The IDE is a single inlined HTML SPA (~192 KB gzipped) served on the bare host. It talks to the standard control-plane endpoints — no extra deploy surface, same auth (claim token or owner Bearer). Anonymous deploys must be claimed before editing.
-
-Files under `server/`, `client/`, `shared/`, plus `package.json` are addressable. `.env.reef.server` is **not** exposed through the IDE — edit secrets via `reef env` instead.
-
-### Project dashboard
-
-Every control plane also serves a per-user dashboard at `<api>/dashboard` that lists every deploy you own — by project title (parsed from `capsule({ title })` in `server/index.ts`), with live URL, age, status pill (owned / shared / anonymous), and per-project actions: **Open IDE →**, **Open live app**, **Rotate claim**, **Delete**. Auth uses the same account API token `reef login` saves to `~/.reef/credentials.json`.
-
-The fastest way to open it: `reef dashboard`. The CLI resolves the URL from `--api`, then `.reef/deploy.json` in the current directory, then a single saved credential, and launches your platform's URL opener (`open` / `xdg-open` / `start`). `reef deploy`, `reef signup`, `reef claim`, and `reef login` also print the dashboard URL on success so it's never hidden.
-
-### Env management
-
-```bash
-reef env list <deployId> --api http://localhost:8787
-reef env set <deployId> KEY=value --api http://localhost:8787
-reef env unset <deployId> KEY --api http://localhost:8787
-```
-
-Updating env triggers a worker re-fork so the new values take effect immediately.
-
-### Token rotation
-
-```bash
-# User-side: rotate your own API token
-reef token rotate --api http://localhost:8787
-
-# Per-deploy: rotate the claim token (owner or admin)
-curl -X POST -H "Authorization: Bearer <token>" \
-  http://localhost:8787/api/deploys/<deployId>/rotate-claim-token
-```
-
-When a user API token is rotated, the previous token continues to authenticate for a 5-minute grace window. This lets in-flight clients (CI runners, long-lived agents) switch to the new token without an outage. The grace window applies only to the immediately prior token — repeated rotations within 5 minutes invalidate intermediate tokens.
-
-### Quotas
-
-Every deploy has a quota, enforced by the control plane:
-
-| Field            | Default | Enforcement                                               |
-| ---------------- | ------- | --------------------------------------------------------- |
-| `maxBundleBytes` | 64 MB   | POST/PUT bundles larger than this return 413              |
-| `maxDiskBytes`   | 512 MB  | post-write directory size check on bundle and env updates |
-| `maxMemoryMb`    | 256     | passed to the worker via `--max-old-space-size`           |
-
-Env writes have separate caps not exposed as quotas: `envText` is limited to 64 KB total, 256 entries, 1024 chars per value. Oversize uploads return 413 before the file is written.
-
-Admins can override per deploy:
-
-```bash
-curl -X PUT -H "Authorization: Bearer <admin-token>" \
-  -H "content-type: application/json" \
-  -d '{"maxMemoryMb": 512}' \
-  http://localhost:8787/api/deploys/<deployId>/quota
-```
-
-Changing `maxMemoryMb` triggers a worker re-fork. There is no CLI subcommand for quotas yet — use `curl`.
-
-### Ingress & CORS
-
-The control plane routes requests by subdomain (`<deployId>.<publicHost>:<port>`) to the matching forked worker. Same-origin CORS is enforced at both the control plane and the deploy worker: cross-origin browser requests receive **no** `Access-Control-Allow-Origin` header by default. A capsule can opt extra origins in by exporting `allowedOrigins: string[]` from `capsule({ ... })`.
+<p align="center">
+  <img src="docs/branding/reef-control-plane.png" alt="Self-hosted control plane" width="100%" />
+</p>
 
 ### Custom subdomains
 
-Every deploy is always reachable at its hex-id subdomain (`<deployId>.<publicHost>`). Owners can register friendly aliases:
+Every deploy is reachable at `<deployId>.<publicHost>`. Add friendly aliases:
 
 ```bash
-reef domains add my-app                  # uses deployId from .reef/deploy.json
+reef domains add my-app                  # uses .reef/deploy.json
 reef domains add my-app <deployId>       # explicit
 reef domains list
 reef domains remove my-app
 ```
 
-After `add` the deploy is reachable at both `<deployId>.<publicHost>:<port>` and `my-app.<publicHost>:<port>`.
+Rules: lowercase `a–z`, digits, hyphens, max 63 chars, no leading/trailing hyphen. Reserved: `api`, `admin`, `docs`, `www`, `app`, `health`. Hex-like deployIds cannot be reused as aliases.
 
-Subdomain rules:
-
-- DNS label: lowercase `a-z`, digits, hyphens, max 63 chars, no leading or trailing hyphen.
-- Reserved names: `api`, `admin`, `docs`, `www`, `app`, `health`.
-- Names that look like hex deployIds (`/^[a-f0-9]{8,}$/`) are not allowed.
-
-Deleting a deploy cascades and removes all its custom domains.
-
-**Going to production** requires a wildcard DNS record `*.reef.example.com → <your-reef-host>` plus TLS handled outside of reef. Reef does not provision certificates. A minimal Caddyfile that terminates TLS for the wildcard and reverse-proxies to a local reef host:
+Production needs a wildcard DNS (`*.reef.example.com → host`) + TLS via a reverse proxy:
 
 ```caddy
 *.reef.example.com {
@@ -482,101 +308,76 @@ Deleting a deploy cascades and removes all its custom domains.
 }
 ```
 
-Cloudflare Tunnel works the same way: point a wildcard hostname at the reef port.
+### Ingress & CORS
 
-### Audit log
+The control plane routes by subdomain (`<deployId>.<host>`). Same-origin CORS is enforced — cross-origin requests receive no `Access-Control-Allow-Origin` by default. Export `allowedOrigins: string[]` from `capsule({ ... })` to opt in.
 
-The control plane records mutations (deploy create/update/delete/claim, env writes, quota changes, domain add/remove, user create, token rotate) in an append-only `audit_log` table. Admins can read recent entries:
+### Audit log & persistent logs
 
-```bash
-curl -H "Authorization: Bearer <admin-token>" \
-  http://localhost:8787/api/audit?limit=100
-```
+- **Audit log** — append-only `audit_log` table for deploys, env, quotas, domains, users, token rotations. Query: `curl -H "Authorization: Bearer ***" http://localhost:8787/api/audit?limit=100`
+- **Persistent logs** — `ctx.log.*` streams over SSE (`/__reef/logs`) and appends as NDJSON to `.reef/logs.ndjson` (rotates at 5 MB, 200 entries restored on restart)
 
-Each entry has `ts`, `actor` (user id, `__host__`, `__anonymous__`, or `__claim_token__`), `action`, `targetDeployId`, `targetUserId`, and a free-form `metadata` object. There is no CLI subcommand yet — use `curl`.
-
-### Persistent logs
-
-Each deploy's `ctx.log.*` entries stream over SSE on `/__reef/logs` and are appended as NDJSON to `<deploy-dir>/.reef/logs.ndjson`. The file rotates at 5 MB (one prior generation kept as `logs.ndjson.1`). On restart, the most recent 200 entries are restored.
-
-### What is NOT solved yet
-
-- No OS-level isolation between deploys (no containers, no seccomp).
-- No HTTPS, no automatic TLS, no DNS provisioning, no wildcard cert automation (custom subdomains require an external reverse proxy for TLS).
-- No billing, no usage metering beyond hard quota limits.
-- No WebSocket support through the proxy.
+---
 
 ## Public Server API
 
-Reef currently exports these server-side primitives from `reef/server`:
+```ts
+// reef/server
+capsule(), table(), string(), number(), boolean(), json(), text()
+query(), mutation(), endpoint()
+```
 
-- `capsule()`
-- `table()`
-- `string()`
-- `number()`
-- `boolean()`
-- `query()`
-- `mutation()`
-- `endpoint()`
-- `json()`
-- `text()`
-
-The request context exposes:
-
-- `ctx.db`
-- `ctx.auth`
-- `ctx.env`
-- `ctx.log`
+Context: `ctx.db` · `ctx.auth` · `ctx.env` · `ctx.log` · `ctx.shopify` — see [`docs/api-reference.md`](docs/api-reference.md)
 
 ## Project Status
 
-Reef is in alpha. The current codebase is strongest at:
+Reef is in **alpha** — strongest at local development and small SQLite-backed apps.
 
-- local development
-- small SQLite-backed apps
-- generated query and mutation routes
-- simple auth flows
-- agent-friendly scaffolding
+| Solid | Still early |
+|---|---|
+| Local dev loop, scaffolding | Deployment is bundle-first, not platform-native |
+| SQLite + generated routes | No first-class hosted control plane yet |
+| Simple auth flows | Template is intentionally small |
+| Agent-friendly scaffolding | No OS isolation between deploys |
 
-Still early:
-
-- deployment is bundle-first, not platform-native
-- there is no first-class hosted control plane yet
-- the default template is intentionally small
+**Not yet solved:** containers/seccomp, automatic TLS/DNS, billing/metering beyond quotas, WebSocket proxying.
 
 ## Repository Layout
 
-```text
-src/
-  cli.ts
-  commands/
-  runtime.ts
-  dev-server.ts
-  bundler.ts
-  server/
-client/
-  index.ts
-bin/
-  reef.js
-docs/
-  branding/
 ```
-
-## Branding
-
-The current visual direction is intentionally simple:
-
-- dark water palette
-- bright signal greens for active runtime energy
-- capsule and ripple geometry instead of generic SaaS gradients
-- diagrams that explain the mental model instead of decorative filler
-
-Brand assets live in [`docs/branding`](./docs/branding).
+src/          CLI, commands, runtime, bundler, host control plane
+  cli.ts
+  commands/   one file per command (Citty defineCommand)
+  host/       control plane — Hono app, SQLite, auth, audit
+  server/     capsule primitives (capsule, table, query, …)
+client/       Preact runtime — useQuery, useMutation, useAuth
+bin/          reef.js · reefsh.js · reef-mcp.js
+docs/         api-reference · cli-reference · operations · mcp
+  branding/   diagrams and banners
+deploy/       Dockerfile, compose, control-plane hardening
+test/         host.test.mjs (integration — real host processes)
+```
 
 ## Contributing
 
-See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for local setup, the dev loop, and the PR checklist. API references: [`docs/api-reference.md`](./docs/api-reference.md) (server) and [`docs/client-reference.md`](./docs/client-reference.md) (client).
+```bash
+git clone https://github.com/DevvGwardo/reef.git
+cd reef
+npm install
+npm run build      # tsc — produces .js next to .ts
+npm test           # build + node --test test/*.test.mjs
+```
+
+- Node **18+** (Node 22+ for `--experimental-permission` sandbox in host tests)
+- `npm run dev` — `tsc --watch`
+- `npm run format` / `npm run format:check` — Prettier
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the full dev loop and PR checklist.
+
+## Branding
+
+Dark water palette, bright signal greens for runtime energy, capsule + ripple geometry. Diagrams explain the mental model. Assets live in [`docs/branding`](docs/branding) — `reef-*.png` + `reef-banner.svg` / `repo-banner.svg`.
 
 ## License
 
-MIT — see [`LICENSE`](./LICENSE).
+MIT — see [`LICENSE`](LICENSE).

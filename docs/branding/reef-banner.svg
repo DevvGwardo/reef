@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#070f1e"/>
+      <stop offset="50%" stop-color="#0a1a2e"/>
+      <stop offset="100%" stop-color="#0d2138"/>
+    </linearGradient>
+    <linearGradient id="greenGlow" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#00ff88" stop-opacity="0.0"/>
+      <stop offset="50%" stop-color="#00ff88" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#00e67a" stop-opacity="0.0"/>
+    </linearGradient>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#132a4a" stroke-width="0.5" opacity="0.25"/>
+    </pattern>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <linearGradient id="capsuleGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#00ff88" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#00cc6a" stop-opacity="0.7"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1280" height="640" fill="url(#bg)"/>
+  <rect width="1280" height="640" fill="url(#grid)"/>
+  
+  <!-- Subtle green glow wash -->
+  <ellipse cx="640" cy="320" rx="500" ry="280" fill="url(#greenGlow)"/>
+  
+  <!-- Ripple rings - centered behind title -->
+  <g opacity="0.08" stroke="#00ff88" fill="none" stroke-width="1">
+    <ellipse cx="640" cy="320" rx="180" ry="45"/>
+    <ellipse cx="640" cy="320" rx="260" ry="65"/>
+    <ellipse cx="640" cy="320" rx="340" ry="85"/>
+    <ellipse cx="640" cy="320" rx="420" ry="105"/>
+  </g>
+  
+  <!-- Capsule icons - floating -->
+  <!-- Left capsule -->
+  <g opacity="0.9">
+    <rect x="100" y="140" width="72" height="48" rx="24" fill="none" stroke="#00ff88" stroke-width="2" opacity="0.6"/>
+    <rect x="108" y="148" width="56" height="32" rx="16" fill="url(#capsuleGrad)" opacity="0.15"/>
+    <circle cx="136" cy="164" r="3" fill="#00ff88" filter="url(#glow)"/>
+  </g>
+  <!-- Right capsule - smaller, offset -->
+  <g opacity="0.5">
+    <rect x="1108" y="480" width="56" height="36" rx="18" fill="none" stroke="#00ff88" stroke-width="1.5" opacity="0.4"/>
+    <circle cx="1136" cy="498" r="2" fill="#00ff88"/>
+  </g>
+  <!-- Tiny capsule deco -->
+  <g opacity="0.3">
+    <rect x="1080" y="120" width="40" height="24" rx="12" fill="none" stroke="#1e3a5f" stroke-width="1"/>
+  </g>
+  
+  <!-- Main title -->
+  <text x="640" y="280" font-family="'Geist Mono', 'JetBrains Mono', 'SF Mono', monospace" font-size="148" font-weight="800" fill="#e8f0fe" text-anchor="middle" letter-spacing="-6">reef</text>
+  
+  <!-- Signal line under title -->
+  <line x1="440" y1="310" x2="840" y2="310" stroke="#00ff88" stroke-width="2" opacity="0.8"/>
+  <circle cx="640" cy="310" r="4" fill="#00ff88" filter="url(#glow)"/>
+  
+  <!-- Subtitle -->
+  <text x="640" y="350" font-family="'Inter', 'SF Pro Display', sans-serif" font-size="22" font-weight="400" fill="#7a9ab8" text-anchor="middle" letter-spacing="2">AGENT-NATIVE CAPSULES</text>
+  
+  <!-- Tagline -->
+  <text x="640" y="390" font-family="'Inter', 'SF Pro Display', sans-serif" font-size="15" font-weight="400" fill="#4a6a8a" text-anchor="middle" letter-spacing="0.5">Build &amp; host small full-stack TypeScript apps — local-first, Shopify-ready</text>
+  
+  <!-- Bottom pills -->
+  <g font-family="'Geist Mono', monospace" font-size="11" font-weight="600" letter-spacing="1.2">
+    <rect x="420" y="450" width="110" height="28" rx="14" fill="#0f2a1a" stroke="#00ff88" stroke-width="1" opacity="0.9"/>
+    <text x="475" y="468" fill="#00ff88" text-anchor="middle">HONO + SQLITE</text>
+    <rect x="545" y="450" width="90" height="28" rx="14" fill="#132a4a" stroke="#3a5a8a" stroke-width="1" opacity="0.7"/>
+    <text x="590" y="468" fill="#7a9ab8" text-anchor="middle">PREACT</text>
+    <rect x="650" y="450" width="110" height="28" rx="14" fill="#132a4a" stroke="#3a5a8a" stroke-width="1" opacity="0.7"/>
+    <text x="705" y="468" fill="#7a9ab8" text-anchor="middle">SHOPIFY API</text>
+  </g>
+  
+  <!-- Bottom watermark -->
+  <text x="640" y="600" font-family="'Geist Mono', monospace" font-size="10" fill="#1e3a5f" text-anchor="middle" letter-spacing="3" opacity="0.5">GITHUB.COM/DEVVGWARDO/REEF</text>
+</svg>
