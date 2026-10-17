@@ -1,0 +1,106 @@
+name: ci
+
+# Tiered CI:
+#   pull_request       -> quick (DevvGwardo/ci-diet): format check + tsc + the
+#                         whole node --test suite, on one Linux runner, Node 22
+#   nightly schedule   -> full: the Node 20/22/24 Linux + Windows/22 matrix,
+#                         skipped if nothing was committed in the last 25h
+#   PR from release/*  -> full matrix as well
+#   workflow_dispatch  -> full matrix:  gh workflow run ci -r <branch>
+#   push to master     -> nothing (the PR already ran quick)
+
+on:
+  pull_request:
+  schedule:
+    - cron: "53 9 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  quick:
+    if: github.event_name == 'pull_request'
+    uses: DevvGwardo/ci-diet/.github/workflows/ci-diet.yml@v1
+    with:
+      node-version: "22"
+      # Some tests scaffold a capsule whose template runs `git init && git commit`.
+      # Provide a default identity so the commit step doesn't fail in CI even if
+      # the test forgets --no-git.
+      setup-command: |
+        npm ci
+        git config --global user.email "ci@reef.test"
+        git config --global user.name "reef ci"
+      quick-command: |
+        npm run format:check
+        npx tsc --noEmit
+        npm test
+      # Unused: ci-diet's own full job is disabled (empty release prefix, and
+      # this job only runs on PRs). The full suite is the matrix job below.
+      full-command: npm test
+      release-branch-prefix: ""
+
+  # Decides whether the full matrix runs: always for workflow_dispatch and
+  # release/* PRs; for the nightly schedule only if master moved in the last 25h.
+  gate:
+    if: >-
+      github.event_name != 'pull_request' ||
+      startsWith(github.head_ref, 'release/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.gate.outputs.run }}
+    steps:
+      - uses: actions/checkout@v5
+      - id: gate
+        env:
+          WINDOW_HOURS: 25
+        run: |
+          run=true
+          if [ "$GITHUB_EVENT_NAME" = schedule ]; then
+            age=$(( $(date +%s) - $(git log -1 --format=%ct) ))
+            if [ "$age" -gt $(( WINDOW_HOURS * 3600 )) ]; then
+              echo "Newest commit is $(( age / 3600 ))h old (window ${WINDOW_HOURS}h); skipping."
+              run=false
+            fi
+          fi
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+
+  full:
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        node: [20, 22, 24]
+        # Exercise Windows on the current LTS so the client CLI (new / dev /
+        # deploy / login / dashboard / --generate) stays green for Windows
+        # users. Host-side cgroup/sandbox code is Linux-only and no-ops here.
+        include:
+          - os: windows-latest
+            node: 22
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm run format:check
+      - run: npx tsc --noEmit
+      # Some tests scaffold a capsule whose template runs `git init && git commit`.
+      # Provide a default identity so the commit step doesn't fail in CI even if
+      # the test forgets --no-git. Use bash explicitly so the step is identical
+      # on the Windows runner (which defaults to PowerShell).
+      - run: |
+          git config --global user.email "ci@reef.test"
+          git config --global user.name "reef ci"
+        shell: bash
+      - run: npm test
